@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import { db } from '../database.js';
+import { pool, seedPostgres } from '../db.js';
 import { authenticate, JWT_SECRET } from '../middleware/auth.js';
 
 const router = express.Router();
@@ -12,7 +12,7 @@ function generateToken(user) {
       id: user.id,
       email: user.email,
       role: user.role,
-      stationId: user.stationId
+      stationId: user.station_id || user.stationId
     },
     JWT_SECRET,
     { expiresIn: '7d' }
@@ -22,7 +22,7 @@ function generateToken(user) {
 // US 1: S'inscrire
 router.post('/register', async (req, res) => {
   try {
-    const { nom, prenom, email, motDePasse } = req.body;
+    const { nom, prenom, email, motDePasse, telephone } = req.body;
     if (!nom || !email || !motDePasse) {
       return res.status(400).json({ message: 'Nom, e-mail et mot de passe sont obligatoires.' });
     }
@@ -36,38 +36,33 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ message: 'Le mot de passe doit contenir au moins 6 caractères.' });
     }
 
-    const existing = db.find('users', u => u.email.toLowerCase() === cleanEmail);
-    if (existing) {
+    const check = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+    if (check.rows.length > 0) {
       return res.status(409).json({ message: 'Cet e-mail est déjà utilisé par un autre compte.' });
     }
 
-    const usersCount = db.collection('users').length;
-    // Premier utilisateur = admin, sinon employé par défaut
-    const role = usersCount === 0 ? 'admin' : 'employe';
+    const countRes = await pool.query('SELECT COUNT(*) FROM users');
+    const role = parseInt(countRes.rows[0].count, 10) === 0 ? 'admin' : 'employe';
 
     const hashedPassword = await bcrypt.hash(motDePasse, 10);
-    const newUser = db.insert('users', {
-      nom: nom.trim(),
-      prenom: (prenom || '').trim(),
-      email: cleanEmail,
-      motDePasse: hashedPassword,
-      role,
-      stationId: null,
-      telephone: req.body.telephone || '',
-      dateCreation: new Date().toISOString()
-    });
+    const insertRes = await pool.query(
+      `INSERT INTO users (nom, prenom, email, mot_de_passe, role, station_id, telephone)
+       VALUES ($1, $2, $3, $4, $5, NULL, $6)
+       RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone, date_creation as "dateCreation"`,
+      [nom.trim(), (prenom || '').trim(), cleanEmail, hashedPassword, role, telephone || '']
+    );
 
+    const newUser = insertRes.rows[0];
     const token = generateToken(newUser);
-    const { motDePasse: _, ...safeUser } = newUser;
 
     return res.status(201).json({
       message: 'Inscription réussie.',
       token,
-      user: safeUser
+      user: { ...newUser, station: null }
     });
   } catch (err) {
     console.error('Register error:', err);
-    return res.status(500).json({ message: 'Erreur interne du serveur lors de l’inscription.' });
+    return res.status(500).json({ message: 'Erreur interne lors de l’inscription.' });
   }
 });
 
@@ -80,29 +75,41 @@ router.post('/login', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    const user = db.find('users', u => u.email.toLowerCase() === cleanEmail);
-    if (!user) {
+    const result = await pool.query(
+      `SELECT u.id, u.nom, u.prenom, u.email, u.mot_de_passe, u.role, u.station_id as "stationId", u.telephone,
+              s.nom as "stationNom", s.ville as "stationVille"
+       FROM users u
+       LEFT JOIN stations s ON u.station_id = s.id
+       WHERE LOWER(u.email) = $1`,
+      [cleanEmail]
+    );
+
+    if (result.rows.length === 0) {
       return res.status(401).json({ message: 'E-mail ou mot de passe incorrect.' });
     }
 
-    const validPassword = await bcrypt.compare(motDePasse, user.motDePasse);
+    const user = result.rows[0];
+    const validPassword = await bcrypt.compare(motDePasse, user.mot_de_passe);
     if (!validPassword) {
       return res.status(401).json({ message: 'E-mail ou mot de passe incorrect.' });
     }
 
     const token = generateToken(user);
-    const { motDePasse: _, ...safeUser } = user;
-
-    // Attach station name if assigned
-    let stationInfo = null;
-    if (safeUser.stationId) {
-      stationInfo = db.findById('stations', safeUser.stationId);
-    }
+    const safeUser = {
+      id: user.id,
+      nom: user.nom,
+      prenom: user.prenom,
+      email: user.email,
+      role: user.role,
+      stationId: user.stationId,
+      telephone: user.telephone,
+      station: user.stationId ? { id: user.stationId, nom: user.stationNom, ville: user.stationVille } : null
+    };
 
     return res.json({
       message: 'Connexion réussie.',
       token,
-      user: { ...safeUser, station: stationInfo }
+      user: safeUser
     });
   } catch (err) {
     console.error('Login error:', err);
@@ -110,15 +117,9 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// US 2 / Current user info
+// Current user
 router.get('/me', authenticate, (req, res) => {
-  const stationInfo = req.user.stationId ? db.findById('stations', req.user.stationId) : null;
-  res.json({
-    user: {
-      ...req.user,
-      station: stationInfo
-    }
-  });
+  res.json({ user: req.user });
 });
 
 // US 4: Modifier profil
@@ -127,37 +128,51 @@ router.put('/profile', authenticate, async (req, res) => {
     const { nom, prenom, email, motDePasse, telephone } = req.body;
     const currentUserId = req.user.id;
 
-    const patch = {};
-    if (nom) patch.nom = nom.trim();
-    if (prenom !== undefined) patch.prenom = prenom.trim();
-    if (telephone !== undefined) patch.telephone = telephone.trim();
-
     if (email) {
       const cleanEmail = email.trim().toLowerCase();
-      if (!/^\S+@\S+\.\S+$/.test(cleanEmail)) {
-        return res.status(400).json({ message: 'Format d’e-mail invalide.' });
+      const existing = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1 AND id != $2', [cleanEmail, currentUserId]);
+      if (existing.rows.length > 0) {
+        return res.status(409).json({ message: 'Cet e-mail est déjà utilisé par un autre compte.' });
       }
-      const existing = db.find('users', u => u.email.toLowerCase() === cleanEmail && u.id !== currentUserId);
-      if (existing) {
-        return res.status(409).json({ message: 'Cet e-mail est déjà utilisé.' });
-      }
-      patch.email = cleanEmail;
     }
 
-    if (motDePasse && motDePasse.trim().length > 0) {
-      if (motDePasse.length < 6) {
-        return res.status(400).json({ message: 'Le mot de passe doit comporter au moins 6 caractères.' });
-      }
-      patch.motDePasse = await bcrypt.hash(motDePasse, 10);
+    let passwordClause = '';
+    const params = [nom.trim(), (prenom || '').trim(), (telephone || '').trim(), currentUserId];
+
+    if (email) {
+      params.splice(2, 0, email.trim().toLowerCase());
     }
 
-    const updated = db.update('users', currentUserId, patch);
-    const { motDePasse: _, ...safeUser } = updated;
-    const stationInfo = safeUser.stationId ? db.findById('stations', safeUser.stationId) : null;
+    let queryText = '';
+    if (motDePasse && motDePasse.length >= 6) {
+      const hashed = await bcrypt.hash(motDePasse, 10);
+      if (email) {
+        queryText = `UPDATE users SET nom=$1, prenom=$2, email=$3, telephone=$4, mot_de_passe=$5 WHERE id=$6 RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone`;
+        params.splice(4, 0, hashed);
+      } else {
+        queryText = `UPDATE users SET nom=$1, prenom=$2, telephone=$3, mot_de_passe=$4 WHERE id=$5 RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone`;
+        params.splice(3, 0, hashed);
+      }
+    } else {
+      if (email) {
+        queryText = `UPDATE users SET nom=$1, prenom=$2, email=$3, telephone=$4 WHERE id=$5 RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone`;
+      } else {
+        queryText = `UPDATE users SET nom=$1, prenom=$2, telephone=$3 WHERE id=$4 RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone`;
+      }
+    }
+
+    const updated = await pool.query(queryText, params);
+    const row = updated.rows[0];
+
+    let stationInfo = null;
+    if (row.stationId) {
+      const st = await pool.query('SELECT id, nom, ville FROM stations WHERE id=$1', [row.stationId]);
+      stationInfo = st.rows[0] || null;
+    }
 
     res.json({
       message: 'Profil mis à jour avec succès.',
-      user: { ...safeUser, station: stationInfo }
+      user: { ...row, station: stationInfo }
     });
   } catch (err) {
     console.error('Profile update error:', err);
@@ -166,13 +181,17 @@ router.put('/profile', authenticate, async (req, res) => {
 });
 
 // Helper: Reset demo
-router.post('/reset-demo', authenticate, (req, res) => {
+router.post('/reset-demo', authenticate, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Action réservée aux administrateurs.' });
   }
-  db.resetToInitial();
-  res.json({ message: 'Base de données réinitialisée aux données de démonstration.' });
+  const client = await pool.connect();
+  try {
+    await seedPostgres(client);
+    res.json({ message: 'Base PostgreSQL réinitialisée aux données de démonstration.' });
+  } finally {
+    client.release();
+  }
 });
 
 export default router;
-

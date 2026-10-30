@@ -1,24 +1,32 @@
 import express from 'express';
 import bcrypt from 'bcryptjs';
-import { db } from '../database.js';
+import { pool } from '../db.js';
 import { authenticate, requireRole } from '../middleware/auth.js';
 
 const router = express.Router();
-
-// All user management routes require admin role
 router.use(authenticate, requireRole('admin'));
 
 // US 5: Liste des utilisateurs
-router.get('/', (req, res) => {
-  const users = db.collection('users').map(u => {
-    const { motDePasse, ...safe } = u;
-    const station = safe.stationId ? db.findById('stations', safe.stationId) : null;
-    return { ...safe, station };
-  });
-  res.json(users);
+router.get('/', async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT u.id, u.nom, u.prenom, u.email, u.role, u.station_id as "stationId", u.telephone, u.date_creation as "dateCreation",
+             json_build_object('id', s.id, 'nom', s.nom, 'ville', s.ville) as station
+      FROM users u
+      LEFT JOIN stations s ON u.station_id = s.id
+      ORDER BY u.id ASC
+    `);
+    const users = result.rows.map(row => ({
+      ...row,
+      station: row.stationId ? row.station : null
+    }));
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des utilisateurs.' });
+  }
 });
 
-// US 5: Créer un utilisateur manuellement par l'admin
+// US 5: Créer un utilisateur
 router.post('/', async (req, res) => {
   try {
     const { nom, prenom, email, motDePasse, role, stationId, telephone } = req.body;
@@ -27,75 +35,79 @@ router.post('/', async (req, res) => {
     }
 
     const cleanEmail = email.trim().toLowerCase();
-    if (db.find('users', u => u.email.toLowerCase() === cleanEmail)) {
+    const existing = await pool.query('SELECT id FROM users WHERE LOWER(email) = $1', [cleanEmail]);
+    if (existing.rows.length > 0) {
       return res.status(409).json({ message: 'Cet e-mail existe déjà.' });
     }
 
     const validRoles = ['admin', 'gerant', 'employe'];
     const chosenRole = validRoles.includes(role) ? role : 'employe';
-
     const hashedPassword = await bcrypt.hash(motDePasse, 10);
-    const user = db.insert('users', {
-      nom: nom.trim(),
-      prenom: (prenom || '').trim(),
-      email: cleanEmail,
-      motDePasse: hashedPassword,
-      role: chosenRole,
-      stationId: stationId ? Number(stationId) : null,
-      telephone: telephone || '',
-      dateCreation: new Date().toISOString()
-    });
 
-    const { motDePasse: _, ...safe } = user;
-    res.status(201).json(safe);
+    const insertRes = await pool.query(`
+      INSERT INTO users (nom, prenom, email, mot_de_passe, role, station_id, telephone)
+      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone, date_creation as "dateCreation"
+    `, [nom.trim(), (prenom || '').trim(), cleanEmail, hashedPassword, chosenRole, stationId ? Number(stationId) : null, telephone || '']);
+
+    res.status(201).json(insertRes.rows[0]);
   } catch (err) {
     res.status(500).json({ message: 'Erreur lors de la création de l’utilisateur.' });
   }
 });
 
-// US 5: Attribuer et modifier le rôle ou la station d'un utilisateur
-router.put('/:id', (req, res) => {
-  const targetId = Number(req.params.id);
-  const user = db.findById('users', targetId);
-  if (!user) {
-    return res.status(404).json({ message: 'Utilisateur introuvable.' });
-  }
+// US 5: Modifier le rôle ou la station
+router.put('/:id', async (req, res) => {
+  try {
+    const targetId = Number(req.params.id);
+    const check = await pool.query('SELECT * FROM users WHERE id = $1', [targetId]);
+    if (check.rows.length === 0) {
+      return res.status(404).json({ message: 'Utilisateur introuvable.' });
+    }
 
-  // Prevent admin from removing their own admin role
-  if (req.user.id === targetId && req.body.role && req.body.role !== 'admin') {
-    return res.status(400).json({ message: 'Vous ne pouvez pas rétrograder votre propre compte administrateur.' });
-  }
+    if (req.user.id === targetId && req.body.role && req.body.role !== 'admin') {
+      return res.status(400).json({ message: 'Vous ne pouvez pas rétrograder votre propre compte administrateur.' });
+    }
 
-  const patch = {};
-  if (req.body.nom) patch.nom = req.body.nom.trim();
-  if (req.body.prenom !== undefined) patch.prenom = req.body.prenom.trim();
-  if (req.body.telephone !== undefined) patch.telephone = req.body.telephone.trim();
-  if (req.body.role && ['admin', 'gerant', 'employe'].includes(req.body.role)) {
-    patch.role = req.body.role;
-  }
-  if (req.body.stationId !== undefined) {
-    patch.stationId = req.body.stationId ? Number(req.body.stationId) : null;
-  }
+    const { role, stationId, nom, prenom, telephone } = req.body;
+    const current = check.rows[0];
 
-  const updated = db.update('users', targetId, patch);
-  const { motDePasse: _, ...safe } = updated;
-  const station = safe.stationId ? db.findById('stations', safe.stationId) : null;
-  res.json({ ...safe, station });
+    const updated = await pool.query(`
+      UPDATE users
+      SET role = COALESCE($1, role),
+          station_id = $2,
+          nom = COALESCE($3, nom),
+          prenom = COALESCE($4, prenom),
+          telephone = COALESCE($5, telephone)
+      WHERE id = $6
+      RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone
+    `, [
+      role || null,
+      stationId !== undefined ? (stationId ? Number(stationId) : null) : current.station_id,
+      nom ? nom.trim() : null,
+      prenom ? prenom.trim() : null,
+      telephone ? telephone.trim() : null,
+      targetId
+    ]);
+
+    res.json(updated.rows[0]);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la modification de l’utilisateur.' });
+  }
 });
 
 // Supprimer un utilisateur
-router.delete('/:id', (req, res) => {
-  const targetId = Number(req.params.id);
-  if (req.user.id === targetId) {
-    return res.status(400).json({ message: 'Impossible de supprimer votre propre compte.' });
+router.delete('/:id', async (req, res) => {
+  try {
+    const targetId = Number(req.params.id);
+    if (req.user.id === targetId) {
+      return res.status(400).json({ message: 'Impossible de supprimer votre propre compte.' });
+    }
+    await pool.query('DELETE FROM users WHERE id = $1', [targetId]);
+    res.json({ message: 'Utilisateur supprimé avec succès.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la suppression.' });
   }
-
-  const deleted = db.delete('users', targetId);
-  if (!deleted) {
-    return res.status(404).json({ message: 'Utilisateur introuvable.' });
-  }
-  res.json({ message: 'Utilisateur supprimé avec succès.' });
 });
 
 export default router;
-

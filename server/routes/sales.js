@@ -1,164 +1,156 @@
 import express from 'express';
-import { db } from '../database.js';
+import { pool } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
-
 router.use(authenticate);
 
 // Consulter les ventes
-router.get('/', (req, res) => {
-  let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-  const user = req.user;
+router.get('/', async (req, res) => {
+  try {
+    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
+    if (req.user.role === 'gerant' || req.user.role === 'employe') {
+      stationId = req.user.stationId;
+    }
 
-  if (user.role === 'gerant') {
-    stationId = user.stationId;
-  } else if (user.role === 'employe') {
-    stationId = user.stationId;
-  }
+    let queryText = `
+      SELECT s.id, s.numero_recu as "numeroRecu", s.date_heure as "dateHeure",
+             s.quantite, s.prix_unitaire as "prixUnitaire", s.montant, s.mode_paiement as "modePaiement",
+             s.station_id as "stationId", s.pompe_id as "pompeId", s.carburant_id as "carburantId", s.employe_id as "employeId",
+             f.libelle as "carburant", p.numero as "pompeNumero", st.nom as "stationNom",
+             concat(u.prenom, ' ', u.nom) as "employeNom"
+      FROM sales s
+      JOIN fuels f ON s.carburant_id = f.id
+      JOIN stations st ON s.station_id = st.id
+      LEFT JOIN pumps p ON s.pompe_id = p.id
+      LEFT JOIN users u ON s.employe_id = u.id
+    `;
+    const params = [];
+    if (stationId) {
+      queryText += ' WHERE s.station_id = $1';
+      params.push(stationId);
+    }
+    queryText += ' ORDER BY s.date_heure DESC, s.id DESC';
 
-  let sales = stationId
-    ? db.filter('sales', s => s.stationId === stationId)
-    : db.collection('sales');
-
-  // Filter by fuel if provided
-  if (req.query.carburantId) {
-    sales = sales.filter(s => s.carburantId === Number(req.query.carburantId));
-  }
-
-  // Filter by employee if provided
-  if (req.query.employeId) {
-    sales = sales.filter(s => s.employeId === Number(req.query.employeId));
-  }
-
-  // Sort by date descending
-  sales.sort((a, b) => new Date(b.dateHeure) - new Date(a.dateHeure));
-
-  // Enrich with details
-  const enriched = sales.map(s => {
-    const fuel = db.findById('fuels', s.carburantId);
-    const pump = db.findById('pumps', s.pompeId);
-    const station = db.findById('stations', s.stationId);
-    const emp = db.findById('users', s.employeId);
-    return {
+    const result = await pool.query(queryText, params);
+    const sales = result.rows.map(s => ({
       ...s,
-      carburant: fuel ? fuel.libelle : '—',
-      pompeNumero: pump ? pump.numero : (s.pompeId || '—'),
-      stationNom: station ? station.nom : '—',
-      employeNom: emp ? `${emp.prenom || ''} ${emp.nom}`.trim() : '—'
-    };
-  });
-
-  res.json(enriched);
+      quantite: Number(s.quantite),
+      prixUnitaire: Number(s.prixUnitaire),
+      montant: Number(s.montant)
+    }));
+    res.json(sales);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des ventes.' });
+  }
 });
 
-// US 26, 27, 28: Enregistrer une vente avec calcul automatique du montant et décrémentation du stock
-router.post('/', (req, res) => {
+// US 26, 27, 28: Enregistrer une vente avec transaction atomique
+router.post('/', async (req, res) => {
   const { pompeId, carburantId, quantite, modePaiement } = req.body;
 
   let stationId = req.user.stationId || Number(req.body.stationId);
-  if (!stationId) {
-    return res.status(400).json({ message: 'Station non spécifiée ou non rattachée à votre compte.' });
-  }
+  if (!stationId) return res.status(400).json({ message: 'Station non spécifiée ou non rattachée.' });
 
   const qte = Number(quantite);
-  if (isNaN(qte) || qte <= 0) {
-    return res.status(400).json({ message: 'La quantité doit être un nombre positif supérieur à zéro.' });
-  }
+  if (isNaN(qte) || qte <= 0) return res.status(400).json({ message: 'Quantité positive requise.' });
 
-  // Resolve fuel from pump or direct carburantId
-  let pump = null;
-  let carbId = carburantId ? Number(carburantId) : null;
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
 
-  if (pompeId) {
-    pump = db.findById('pumps', Number(pompeId));
-    if (!pump) {
-      return res.status(400).json({ message: 'Pompe introuvable.' });
+    // 1. Resolve pump and fuel
+    let pump = null;
+    let carbId = carburantId ? Number(carburantId) : null;
+
+    if (pompeId) {
+      const pRes = await client.query('SELECT * FROM pumps WHERE id = $1', [Number(pompeId)]);
+      if (pRes.rows.length === 0) {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: 'Pompe introuvable.' });
+      }
+      pump = pRes.rows[0];
+      if (pump.etat !== 'En service') {
+        await client.query('ROLLBACK');
+        return res.status(400).json({ message: `La pompe n° ${pump.numero} est actuellement « ${pump.etat} ».` });
+      }
+      carbId = pump.carburant_id;
     }
-    if (pump.etat !== 'En service') {
-      return res.status(400).json({ message: `La pompe n° ${pump.numero} est actuellement « ${pump.etat} ».` });
+
+    const fuelRes = await client.query('SELECT * FROM fuels WHERE id = $1', [carbId]);
+    if (fuelRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: 'Carburant invalide.' });
     }
-    carbId = pump.carburantId;
-  }
+    const fuel = fuelRes.rows[0];
 
-  const fuel = db.findById('fuels', carbId);
-  if (!fuel) {
-    return res.status(400).json({ message: 'Type de carburant invalide.' });
-  }
+    // 2. Lock tank for update
+    const tankRes = await client.query(
+      'SELECT * FROM tanks WHERE station_id = $1 AND carburant_id = $2 LIMIT 1 FOR UPDATE',
+      [stationId, fuel.id]
+    );
 
-  // Find corresponding tank with fuel in this station
-  const targetTank = db.find('tanks', t => t.stationId === stationId && t.carburantId === fuel.id);
-  if (!targetTank) {
-    return res.status(400).json({ 
-      message: `Aucune cuve de stockage n'existe pour « ${fuel.libelle} » dans cette station.` 
+    if (tankRes.rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ message: `Aucune cuve configurée pour « ${fuel.libelle} ».` });
+    }
+    const tank = tankRes.rows[0];
+
+    // 3. Stock availability check (sequence diagram: 409 if insufficient)
+    const currentNiv = Number(tank.niveau_actuel);
+    if (currentNiv < qte) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        message: `Stock insuffisant pour « ${fuel.libelle} » ! Disponible : ${currentNiv.toFixed(1)} L, demandée : ${qte.toFixed(1)} L.`
+      });
+    }
+
+    // 4. US 27: Montant = Quantité * Prix Unitaire
+    const prixUnitaire = Number(fuel.prix_unitaire);
+    const montant = Number((qte * prixUnitaire).toFixed(3));
+    const nouveauNiveau = Number((currentNiv - qte).toFixed(2));
+
+    // 5. Decrement tank level
+    await client.query('UPDATE tanks SET niveau_actuel = $1 WHERE id = $2', [nouveauNiveau, tank.id]);
+
+    // 6. Generate receipt number & insert sale
+    const numeroRecu = `REC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
+    const now = new Date().toISOString();
+
+    const insertSale = await client.query(`
+      INSERT INTO sales (numero_recu, station_id, pompe_id, cuve_id, carburant_id, employe_id, quantite, prix_unitaire, montant, date_heure, mode_paiement)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      RETURNING id, numero_recu as "numeroRecu", date_heure as "dateHeure", quantite, prix_unitaire as "prixUnitaire", montant, mode_paiement as "modePaiement"
+    `, [numeroRecu, stationId, pump ? pump.id : null, tank.id, fuel.id, req.user.id, qte, prixUnitaire, montant, now, modePaiement || 'Espèces']);
+
+    // 7. Insert stock movement
+    await client.query(`
+      INSERT INTO stock_movements (date_heure, station_id, cuve_id, carburant_id, type, quantite, ancien_niveau, nouveau_niveau, reference_id, auteur)
+      VALUES ($1, $2, $3, $4, 'SORTIE_VENTE', $5, $6, $7, $8, $9)
+    `, [now, stationId, tank.id, fuel.id, qte, currentNiv, nouveauNiveau, numeroRecu, `${req.user.prenom || ''} ${req.user.nom}`.trim()]);
+
+    await client.query('COMMIT');
+
+    res.status(201).json({
+      message: 'Vente enregistrée avec succès.',
+      sale: {
+        ...insertSale.rows[0],
+        carburant: fuel.libelle,
+        pompeNumero: pump ? pump.numero : '—',
+        quantite: qte,
+        prixUnitaire,
+        montant,
+        alerteFaible: nouveauNiveau <= Number(fuel.seuil_minimal || 3000)
+      },
+      stockRestant: nouveauNiveau
     });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Sale error:', err);
+    res.status(500).json({ message: 'Erreur lors de l’enregistrement de la vente.' });
+  } finally {
+    client.release();
   }
-
-  // Stock check: Verify availability (sequence diagram: [stock insuffisant] -> 409)
-  if (targetTank.niveauActuel < qte) {
-    return res.status(409).json({
-      message: `Stock insuffisant pour « ${fuel.libelle} » ! Quantité disponible dans la cuve : ${targetTank.niveauActuel.toFixed(1)} L, demandée : ${qte.toFixed(1)} L.`
-    });
-  }
-
-  // US 27: Calcul automatique du montant = Quantité × Prix unitaire
-  const prixUnitaire = fuel.prixUnitaire;
-  const montant = Number((qte * prixUnitaire).toFixed(3));
-
-  const ancienNiveau = targetTank.niveauActuel;
-  const nouveauNiveau = Number((ancienNiveau - qte).toFixed(2));
-
-  // 1. Decrement Tank Stock
-  db.update('tanks', targetTank.id, { niveauActuel: nouveauNiveau });
-
-  // 2. Generate receipt ID
-  const salesCount = db.collection('sales').length + 1;
-  const numeroRecu = `REC-${Date.now().toString().slice(-6)}-${salesCount}`;
-  const now = new Date().toISOString();
-
-  // 3. Save Sale
-  const sale = db.insert('sales', {
-    numeroRecu,
-    stationId,
-    pompeId: pump ? pump.id : null,
-    cuveId: targetTank.id,
-    carburantId: fuel.id,
-    employeId: req.user.id,
-    quantite: qte,
-    prixUnitaire,
-    montant,
-    dateHeure: now,
-    modePaiement: modePaiement || 'Espèces'
-  });
-
-  // 4. Trace stock movement
-  db.insert('stock_movements', {
-    dateHeure: now,
-    stationId,
-    cuveId: targetTank.id,
-    carburantId: fuel.id,
-    type: 'SORTIE_VENTE',
-    quantite: qte,
-    ancienNiveau,
-    nouveauNiveau,
-    referenceId: numeroRecu,
-    auteur: `${req.user.prenom || ''} ${req.user.nom}`.trim()
-  });
-
-  // Check if stock passed below seuil
-  const alerteFaible = nouveauNiveau <= (fuel.seuilMinimal || 3000);
-
-  res.status(201).json({
-    message: 'Vente enregistrée avec succès.',
-    sale: {
-      ...sale,
-      carburant: fuel.libelle,
-      pompeNumero: pump ? pump.numero : '—',
-      alerteFaible
-    },
-    stockRestant: nouveauNiveau
-  });
 });
 
 export default router;
-

@@ -1,0 +1,992 @@
+<!-- Toast Notifications -->
+<div id="toast" [class]="toastType()" *ngIf="showToast()">
+  {{ toastMessage() }}
+</div>
+
+<!-- 1. AUTH SCREEN (IF NOT LOGGED IN) -->
+<div class="authw" *ngIf="!currentUser()">
+  <div class="hero">
+    <div class="logo">
+      <i>⛽</i>
+      <b>FUEL<span>//</span>MANAGER</b>
+      <span class="logo-tag">Angular &amp; PostgreSQL</span>
+    </div>
+    <h1>Pilotez chaque station, chaque litre.</h1>
+    <p>Application web d'entreprise avec frontend Angular et base de données PostgreSQL en direct.</p>
+
+    <div class="hero-project-box">
+      <b>🎓 Projet d'Intégration — ISET Charguia</b><br>
+      <span>Étudiants : Noussair Huimli, Rayen Bakey, Koussay Ghriss</span><br>
+      <span>Sous la direction de : <b>Mme Sonia Gannar</b></span><br>
+      <span style="font-size:11px; opacity:0.8;">Année Universitaire 2026 – 2027</span>
+    </div>
+  </div>
+
+  <div class="form-container">
+    <div class="card" style="margin-bottom:0">
+      <div class="tabs">
+        <button [class.p]="authTab() === 'login'" (click)="authTab.set('login')">Connexion</button>
+        <button [class.p]="authTab() === 'register'" (click)="authTab.set('register')">Inscription</button>
+      </div>
+
+      <form (ngSubmit)="submitAuth()">
+        <div class="form-grid" *ngIf="authTab() === 'register'">
+          <div>
+            <label>Nom *</label>
+            <input [(ngModel)]="authNom" name="nom" required placeholder="Ex: Ben Ali">
+          </div>
+          <div>
+            <label>Prénom</label>
+            <input [(ngModel)]="authPrenom" name="prenom" placeholder="Ex: Karim">
+          </div>
+        </div>
+
+        <label>Adresse E-mail *</label>
+        <input [(ngModel)]="authEmail" name="email" type="email" required placeholder="nom@fuelmanager.tn">
+
+        <label>Mot de passe *</label>
+        <input [(ngModel)]="authPassword" name="password" type="password" required placeholder="••••••••">
+
+        <div class="err" *ngIf="authError">{{ authError }}</div>
+
+        <button type="submit" class="p" style="width: 100%; padding: 13px; margin-top: 14px;">
+          {{ authTab() === 'register' ? 'Créer mon compte' : 'Se connecter' }}
+        </button>
+      </form>
+
+      <div class="quick-demo-logins">
+        <small style="text-transform: uppercase; font-size: 11px; color: var(--mu); font-weight: 700; letter-spacing: 0.8px;">
+          ⚡ Comptes de test rapides (Soutenance) :
+        </small>
+        <div class="demo-pills">
+          <button class="demo-pill" type="button" (click)="fillDemo('admin@fuelmanager.tn', 'admin123')">
+            👑 Admin
+          </button>
+          <button class="demo-pill" type="button" (click)="fillDemo('gerant.charguia@fuelmanager.tn', 'gerant123')">
+            🏬 Gérant Charguia
+          </button>
+          <button class="demo-pill" type="button" (click)="fillDemo('employe.charguia@fuelmanager.tn', 'employe123')">
+            ⛽ Employé Piste
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 2. MAIN APPLICATION (WHEN LOGGED IN) -->
+<div class="app" *ngIf="currentUser()">
+  <!-- Sidebar -->
+  <aside class="side">
+    <div class="logo">
+      <i>⛽</i>
+      <div>
+        <b>FUEL<span>//</span>MANAGER</b>
+        <div class="logo-tag">Angular &amp; Postgres</div>
+      </div>
+    </div>
+
+    <!-- Station Pill -->
+    <div class="station-pill" *ngIf="currentUser().station">
+      <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Station rattachée</span>
+      <b>{{ currentUser().station.nom }}</b>
+      <span>{{ currentUser().station.ville }}</span>
+    </div>
+
+    <!-- Navigation by Role -->
+    <nav>
+      <ng-container *ngIf="currentUser().role === 'admin'">
+        <button [class.on]="activePage() === 'dashboard'" (click)="setPage('dashboard')"><i>📊</i> Tableau de bord</button>
+        <button [class.on]="activePage() === 'stations'" (click)="setPage('stations')"><i>🏢</i> Stations-service</button>
+        <button [class.on]="activePage() === 'fuels'" (click)="setPage('fuels')"><i>🛢️</i> Carburants &amp; Prix</button>
+        <button [class.on]="activePage() === 'tanks'" (click)="setPage('tanks')"><i>🧪</i> Cuves de stockage</button>
+        <button [class.on]="activePage() === 'pumps'" (click)="setPage('pumps')"><i>⛽</i> Pompes du réseau</button>
+        <button [class.on]="activePage() === 'suppliers'" (click)="setPage('suppliers')"><i>🤝</i> Fournisseurs</button>
+        <button [class.on]="activePage() === 'deliveries'" (click)="setPage('deliveries')"><i>🚚</i> Livraisons</button>
+        <button [class.on]="activePage() === 'sales'" (click)="setPage('sales')"><i>💰</i> Historique des ventes</button>
+        <button [class.on]="activePage() === 'users'" (click)="setPage('users')"><i>👥</i> Utilisateurs &amp; Rôles</button>
+        <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
+      </ng-container>
+
+      <ng-container *ngIf="currentUser().role === 'gerant'">
+        <button [class.on]="activePage() === 'dashboard'" (click)="setPage('dashboard')"><i>📊</i> Tableau de bord</button>
+        <button [class.on]="activePage() === 'stock'" (click)="setPage('stock')"><i>📈</i> Suivi du stock</button>
+        <button [class.on]="activePage() === 'pumps'" (click)="setPage('pumps')"><i>⛽</i> Pompes de la station</button>
+        <button [class.on]="activePage() === 'tanks'" (click)="setPage('tanks')"><i>🧪</i> Cuves de la station</button>
+        <button [class.on]="activePage() === 'deliveries'" (click)="setPage('deliveries')"><i>🚚</i> Entrées de carburant</button>
+        <button [class.on]="activePage() === 'sales'" (click)="setPage('sales')"><i>💰</i> Ventes de la station</button>
+        <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
+      </ng-container>
+
+      <ng-container *ngIf="currentUser().role === 'employe'">
+        <button [class.on]="activePage() === 'pos'" (click)="setPage('pos')"><i>💳</i> Caisse &amp; Vente rapide</button>
+        <button [class.on]="activePage() === 'sales'" (click)="setPage('sales')"><i>💰</i> Mes ventes du jour</button>
+        <button [class.on]="activePage() === 'stock'" (click)="setPage('stock')"><i>📈</i> Niveaux des cuves</button>
+        <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
+      </ng-container>
+    </nav>
+
+    <!-- User Profile Strip -->
+    <div class="me">
+      <div class="av">{{ (currentUser().prenom || currentUser().nom).charAt(0).toUpperCase() }}</div>
+      <div>
+        <b>{{ currentUser().prenom ? currentUser().prenom + ' ' + currentUser().nom : currentUser().nom }}</b>
+        <small>{{ rolesMap[currentUser().role] }}</small>
+      </div>
+      <button class="theme-btn" (click)="toggleTheme()" title="Thème">
+        {{ theme() === 'dark' ? '☀️' : '🌙' }}
+      </button>
+      <button (click)="logout()" title="Déconnexion">⏻</button>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main>
+    <!-- PAGE: DASHBOARD -->
+    <div *ngIf="activePage() === 'dashboard'">
+      <div class="top-bar">
+        <div>
+          <h2>Tableau de bord</h2>
+          <div class="subtitle">Vue d'ensemble connectée à la base PostgreSQL (Sprint 1 &amp; 2).</div>
+        </div>
+        <div *ngIf="currentUser().role === 'admin'">
+          <button (click)="resetDemo()">🔄 Réinitialiser Données Démo</button>
+        </div>
+      </div>
+
+      <div class="stats" *ngIf="dashboardData()">
+        <div class="st">
+          <small>Volume en cuves</small>
+          <b>{{ dashboardData().totalStockVolume | number }} L</b>
+          <div class="st-sub">{{ dashboardData().globalStockPercentage }}% de capacité globale</div>
+        </div>
+        <div class="st highlight">
+          <small>Ventes du jour</small>
+          <b>{{ dashboardData().todaysSalesRevenue | number:'1.3-3' }} <span style="font-size:18px">DT</span></b>
+          <div class="st-sub">{{ dashboardData().todaysLitersSold }} L servis aujourd'hui</div>
+        </div>
+        <div class="st">
+          <small>Pompes actives</small>
+          <b>{{ dashboardData().pumpsActive }} / {{ dashboardData().pumpsCount }}</b>
+          <div class="st-sub">Équipements de distribution</div>
+        </div>
+        <div class="st">
+          <small>Alertes Stock</small>
+          <b [style.color]="dashboardData().alertsCount > 0 ? 'var(--dg)' : 'inherit'">{{ dashboardData().alertsCount }}</b>
+          <div class="st-sub">{{ dashboardData().alertsCount > 0 ? '⚠️ Seuil minimal atteint !' : 'Niveaux normaux' }}</div>
+        </div>
+      </div>
+
+      <!-- Gauges -->
+      <div class="card">
+        <div class="card-header">
+          <h3 class="card-title">🛢️ Niveaux de Stock par Carburant (PostgreSQL Live)</h3>
+          <button class="sm" (click)="setPage('tanks')">Gérer les cuves</button>
+        </div>
+
+        <div class="tank-grid">
+          <div class="tank-card" *ngFor="let s of stockSummary()" [class.alert-border]="s.estFaible">
+            <div class="tank-header">
+              <div class="tank-title">
+                <span class="tank-dot" [style.background]="s.couleur || 'var(--ac)'"></span>
+                {{ s.libelle }}
+              </div>
+              <span class="badge" [ngClass]="{'danger': s.estCritique, 'warn': s.estFaible && !s.estCritique, 'suc': !s.estFaible}">
+                {{ s.estCritique ? '🚨 Critique' : s.estFaible ? '⚠️ Faible' : '✅ Normal' }}
+              </span>
+            </div>
+
+            <div class="progress-track">
+              <div class="progress-fill" [style.width.%]="s.pourcentage" [style.background]="s.estFaible ? 'var(--dg)' : (s.couleur || 'var(--ac)')"></div>
+            </div>
+
+            <div class="tank-meta">
+              <span>Disponible : <b>{{ s.totalNiveau | number }} L</b></span>
+              <span>Capacité : <b>{{ s.totalCapacite | number }} L</b></span>
+            </div>
+
+            <div style="font-size:12px; color:var(--mu); display:flex; justify-content:space-between;">
+              <span>Prix : <b>{{ s.prixUnitaire | number:'1.3-3' }} DT/L</b></span>
+              <span>Seuil alerte : <b>{{ s.seuilMinimal }} L</b></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: STATIONS -->
+    <div *ngIf="activePage() === 'stations'">
+      <div class="top-bar">
+        <div>
+          <h2>Stations-service du réseau</h2>
+          <div class="subtitle">Gestion des implantations géographiques (Sprint 1 — US 6 à 9).</div>
+        </div>
+        <button class="p" (click)="openModal('station')">+ Ajouter une station</button>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom de la station</th>
+              <th>Ville</th>
+              <th>Adresse</th>
+              <th>Téléphone</th>
+              <th>État</th>
+              <th>Équipements</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of stations()">
+              <td><b>{{ s.nom }}</b></td>
+              <td>{{ s.ville }}</td>
+              <td>{{ s.adresse }}</td>
+              <td>{{ s.telephone || '—' }}</td>
+              <td><span class="badge" [class.suc]="s.etat === 'Active'" [class.neutral]="s.etat !== 'Active'">{{ s.etat }}</span></td>
+              <td><small class="mu">{{ s.nbPompes }} pompes • {{ s.nbCuves }} cuves</small></td>
+              <td class="a">
+                <button (click)="openModal('station', s)">Modifier</button>
+                <button class="d" (click)="deleteItem('station', s.id)">Supprimer</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: FUELS -->
+    <div *ngIf="activePage() === 'fuels'">
+      <div class="top-bar">
+        <div>
+          <h2>Types de Carburant &amp; Tarifs</h2>
+          <div class="subtitle">Catalogue des produits vendus et prix unitaires (Sprint 1 &amp; 2).</div>
+        </div>
+        <button class="p" *ngIf="currentUser().role === 'admin'" (click)="openModal('fuel')">+ Ajouter un carburant</button>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Carburant</th>
+              <th>Prix unitaire (DT/L)</th>
+              <th>Seuil d'alerte (L)</th>
+              <th>Couleur</th>
+              <th>Description</th>
+              <th style="text-align:right" *ngIf="currentUser().role === 'admin'">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let f of fuels()">
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="tank-dot" [style.background]="f.couleur"></span>
+                  <b>{{ f.libelle }}</b>
+                </div>
+              </td>
+              <td><b>{{ f.prixUnitaire | number:'1.3-3' }} DT</b></td>
+              <td><span class="badge neutral">{{ f.seuilMinimal | number }} L</span></td>
+              <td><div style="width:20px; height:20px; border-radius:6px;" [style.background]="f.couleur"></div></td>
+              <td class="mu">{{ f.description || '—' }}</td>
+              <td class="a" *ngIf="currentUser().role === 'admin'">
+                <button (click)="openModal('fuel', f)">Modifier / Tarif</button>
+                <button class="d" (click)="deleteItem('fuel', f.id)">Supprimer</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: PUMPS -->
+    <div *ngIf="activePage() === 'pumps'">
+      <div class="top-bar">
+        <div>
+          <h2>Pompes de distribution</h2>
+          <div class="subtitle">Bornes et pistolets de distribution (Sprint 1 — US 14 à 16).</div>
+        </div>
+        <button class="p" *ngIf="currentUser().role !== 'employe'" (click)="openModal('pump')">+ Ajouter une pompe</button>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>N° Pompe</th>
+              <th>Station</th>
+              <th>Carburant</th>
+              <th>Tarif (DT/L)</th>
+              <th>État</th>
+              <th>Emplacement</th>
+              <th style="text-align:right" *ngIf="currentUser().role !== 'employe'">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let p of pumps()">
+              <td><b>Pompe #{{ p.numero }}</b></td>
+              <td>{{ p.station?.nom }}</td>
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span class="tank-dot" [style.background]="p.carburant?.couleur"></span>
+                  {{ p.carburant?.libelle }}
+                </div>
+              </td>
+              <td>{{ p.carburant?.prixUnitaire | number:'1.3-3' }} DT</td>
+              <td>
+                <span class="badge" [ngClass]="{'suc': p.etat === 'En service', 'warn': p.etat === 'Maintenance', 'danger': p.etat === 'Hors service'}">
+                  {{ p.etat }}
+                </span>
+              </td>
+              <td class="mu">{{ p.description || '—' }}</td>
+              <td class="a" *ngIf="currentUser().role !== 'employe'">
+                <button (click)="openModal('pump', p)">Modifier</button>
+                <button class="d" (click)="deleteItem('pump', p.id)">Supprimer</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: TANKS / STOCK -->
+    <div *ngIf="activePage() === 'tanks' || activePage() === 'stock'">
+      <div class="top-bar">
+        <div>
+          <h2>Cuves &amp; Suivi des Stocks</h2>
+          <div class="subtitle">Niveaux de stockage en direct et historique des flux (Sprint 1 &amp; 2).</div>
+        </div>
+        <button class="p" *ngIf="currentUser().role !== 'employe'" (click)="openModal('tank')">+ Ajouter une cuve</button>
+      </div>
+
+      <div class="tank-grid" style="margin-bottom:24px;">
+        <div class="tank-card" *ngFor="let t of tanks()" [class.alert-border]="t.estFaible">
+          <div class="tank-header">
+            <div>
+              <div class="tank-title">
+                <span class="tank-dot" [style.background]="t.carburant?.couleur"></span>
+                Cuve #{{ t.id }} — {{ t.carburant?.libelle }}
+              </div>
+              <small class="mu">{{ t.station?.nom }}</small>
+            </div>
+            <span class="badge" [ngClass]="{'danger': t.estCritique, 'warn': t.estFaible && !t.estCritique, 'suc': !t.estFaible}">
+              {{ t.estCritique ? '🚨 Critique' : t.estFaible ? '⚠️ Faible' : '✅ Normal' }}
+            </span>
+          </div>
+
+          <div class="progress-track">
+            <div class="progress-fill" [style.width.%]="t.pourcentage" [style.background]="t.estFaible ? 'var(--dg)' : (t.carburant?.couleur || 'var(--ac)')"></div>
+          </div>
+
+          <div class="tank-meta">
+            <span>Niveau actuel : <b>{{ t.niveauActuel | number }} L</b></span>
+            <span>Remplissage : <b>{{ t.pourcentage }}%</b></span>
+          </div>
+
+          <div class="tank-meta">
+            <span>Capacité : <b>{{ t.capacite | number }} L</b></span>
+            <span>Seuil alerte : <b>{{ t.seuilMinimal | number }} L</b></span>
+          </div>
+
+          <div class="dialog-actions" style="margin-top:8px; border-top:1px dashed var(--bd); padding-top:10px;" *ngIf="currentUser().role !== 'employe'">
+            <button class="sm" (click)="openModal('tank', t)">Modifier</button>
+            <button class="sm d" (click)="deleteItem('tank', t.id)">Supprimer</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mouvements de stock -->
+      <div class="card">
+        <h3 class="card-title" style="margin-bottom:14px;">📜 Journal des Mouvements de Stock (PostgreSQL)</h3>
+        <div class="tw">
+          <table>
+            <thead>
+              <tr>
+                <th>Date &amp; Heure</th>
+                <th>Station</th>
+                <th>Carburant</th>
+                <th>Type de flux</th>
+                <th>Quantité</th>
+                <th>Ancien stock</th>
+                <th>Nouveau stock</th>
+                <th>Réf. Document</th>
+                <th>Opérateur</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let m of movements()">
+                <td>{{ m.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ m.station }}</td>
+                <td><b>{{ m.carburant }}</b></td>
+                <td>
+                  <span class="badge" [class.suc]="m.type === 'ENTREE_LIVRAISON'" [class.neutral]="m.type !== 'ENTREE_LIVRAISON'">
+                    {{ m.type === 'ENTREE_LIVRAISON' ? '📥 Entrée (Livraison)' : '📤 Sortie (Vente)' }}
+                  </span>
+                </td>
+                <td><b>{{ m.quantite | number }} L</b></td>
+                <td class="mu">{{ m.ancienNiveau | number }} L</td>
+                <td><b>{{ m.nouveauNiveau | number }} L</b></td>
+                <td><code>{{ m.referenceId }}</code></td>
+                <td>{{ m.auteur }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: SUPPLIERS -->
+    <div *ngIf="activePage() === 'suppliers'">
+      <div class="top-bar">
+        <div>
+          <h2>Fournisseurs de carburant</h2>
+          <div class="subtitle">Gestion des partenaires pétroliers (Sprint 2 — US 20 à 23).</div>
+        </div>
+        <button class="p" (click)="openModal('supplier')">+ Ajouter un fournisseur</button>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Fournisseur</th>
+              <th>Téléphone</th>
+              <th>E-mail</th>
+              <th>Adresse</th>
+              <th>Matricule Fiscale</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let sup of suppliers()">
+              <td><b>{{ sup.nom }}</b></td>
+              <td>{{ sup.telephone || '—' }}</td>
+              <td>{{ sup.email || '—' }}</td>
+              <td>{{ sup.adresse || '—' }}</td>
+              <td><code>{{ sup.matriculeFiscale || '—' }}</code></td>
+              <td class="a">
+                <button (click)="openModal('supplier', sup)">Modifier</button>
+                <button class="d" (click)="deleteItem('supplier', sup.id)">Supprimer</button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: DELIVERIES -->
+    <div *ngIf="activePage() === 'deliveries'">
+      <div class="top-bar">
+        <div>
+          <h2>Livraisons &amp; Approvisionnements</h2>
+          <div class="subtitle">Réception de carburant et mise à jour automatique des stocks (Sprint 2 — US 24 &amp; 25).</div>
+        </div>
+        <button class="p" *ngIf="currentUser().role !== 'employe'" (click)="openModal('delivery')">+ Enregistrer une livraison</button>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>N° Bon</th>
+              <th>Date &amp; Heure</th>
+              <th>Fournisseur</th>
+              <th>Station</th>
+              <th>Cuve &amp; Carburant</th>
+              <th>Quantité</th>
+              <th>Prix Achat (DT/L)</th>
+              <th>Total HT</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let d of deliveries()">
+              <td><code><b>{{ d.numeroBon }}</b></code></td>
+              <td>{{ d.date | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td><b>{{ d.fournisseur }}</b></td>
+              <td>{{ d.station }}</td>
+              <td><span class="badge neutral">{{ d.cuve }}</span></td>
+              <td><b style="color:var(--suc);">+{{ d.quantite | number }} L</b></td>
+              <td>{{ d.prixAchat | number:'1.3-3' }} DT</td>
+              <td><b>{{ (d.quantite * d.prixAchat) | number:'1.3-3' }} DT</b></td>
+              <td class="mu">{{ d.notes || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: POS (CAISSE VENTE RAPIDE) -->
+    <div *ngIf="activePage() === 'pos'">
+      <div class="top-bar">
+        <div>
+          <h2>Caisse &amp; Distribution Rapide</h2>
+          <div class="subtitle">Encaissement avec calcul automatique du montant et contrôle de stock (Sprint 2 — US 26 à 28).</div>
+        </div>
+        <button (click)="setPage('sales')">📜 Historique des ventes</button>
+      </div>
+
+      <div class="pos-layout">
+        <div>
+          <div class="card">
+            <h3 style="margin-top:0">1. Sélectionnez la pompe en service</h3>
+            <div class="fuel-selector-grid">
+              <div class="fuel-card-btn" *ngFor="let p of pumps()" [class.selected]="selectedPumpId === p.id" (click)="selectedPumpId = p.id">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b style="font-size:16px;">Pompe #{{ p.numero }}</b>
+                  <span class="tank-dot" [style.background]="p.carburant?.couleur"></span>
+                </div>
+                <div style="font-weight:700;">{{ p.carburant?.libelle }}</div>
+                <div style="font-size:13px; color:var(--mu);">Tarif : <b>{{ p.carburant?.prixUnitaire | number:'1.3-3' }} DT/L</b></div>
+              </div>
+            </div>
+
+            <h3>2. Quantité servie</h3>
+            <label>Volume en Litres</label>
+            <input [(ngModel)]="posQuantity" type="number" step="0.5" min="1" style="font-size:24px; font-weight:700; height:56px;">
+
+            <div class="quick-amounts">
+              <button type="button" class="sm" (click)="posQuantity = 10">10 Litres</button>
+              <button type="button" class="sm" (click)="posQuantity = 20">20 Litres</button>
+              <button type="button" class="sm" (click)="posQuantity = 40">40 Litres</button>
+              <button type="button" class="sm" (click)="posQuantity = 60">60 Litres</button>
+            </div>
+
+            <label>Mode de règlement</label>
+            <select [(ngModel)]="posPayment">
+              <option value="Espèces">Espèces</option>
+              <option value="Carte Bancaire">Carte Bancaire (TPE)</option>
+              <option value="Bon Carburant">Bon Carburant Entreprise</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <div class="card" style="position:sticky; top:24px;">
+            <h3 style="margin-top:0">Ticket de Caisse</h3>
+            <div class="receipt-preview">
+              <div style="text-align:center; border-bottom:1px dashed var(--bd); padding-bottom:10px; margin-bottom:12px;">
+                <b>⛽ {{ currentUser().station?.nom || 'FUEL//MANAGER' }}</b><br>
+                <small>{{ 'Aujourd\'hui' }}</small>
+              </div>
+
+              <div class="row">
+                <span>Pompe :</span>
+                <b>Pompe #{{ getSelectedPump()?.numero || '—' }}</b>
+              </div>
+              <div class="row">
+                <span>Carburant :</span>
+                <b>{{ getSelectedPump()?.carburant?.libelle || '—' }}</b>
+              </div>
+              <div class="row">
+                <span>Prix unitaire :</span>
+                <span>{{ (getSelectedPump()?.carburant?.prixUnitaire || 0) | number:'1.3-3' }} DT/L</span>
+              </div>
+              <div class="row">
+                <span>Quantité :</span>
+                <b>{{ posQuantity }} Litres</b>
+              </div>
+
+              <div style="border-top:1px dashed var(--bd); margin-top:14px; padding-top:10px;">
+                <div class="row" style="font-size:20px; font-weight:700;">
+                  <span>Total Net :</span>
+                  <span style="color:var(--ac);">{{ getCalculatedAmount() | number:'1.3-3' }} DT</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="err" *ngIf="posError">{{ posError }}</div>
+
+            <button class="p" style="width:100%; padding:15px; font-size:16px; margin-top:16px;" (click)="submitPOSSale()">
+              ✅ Valider &amp; Imprimer Reçu
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PAGE: SALES HISTORY -->
+    <div *ngIf="activePage() === 'sales'">
+      <div class="top-bar">
+        <div>
+          <h2>Historique des Ventes</h2>
+          <div class="subtitle">Traçabilité complète des transactions de carburant (Sprint 2 — US 26 à 28).</div>
+        </div>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>N° Reçu</th>
+              <th>Date &amp; Heure</th>
+              <th>Station</th>
+              <th>Pompe</th>
+              <th>Carburant</th>
+              <th>Quantité</th>
+              <th>Prix Unit.</th>
+              <th>Total Montant</th>
+              <th>Règlement</th>
+              <th>Caissier</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of sales()">
+              <td><code>{{ s.numeroRecu }}</code></td>
+              <td>{{ s.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ s.stationNom }}</td>
+              <td><b>Pompe #{{ s.pompeNumero }}</b></td>
+              <td><b>{{ s.carburant }}</b></td>
+              <td>{{ s.quantite | number:'1.2-2' }} L</td>
+              <td>{{ s.prixUnitaire | number:'1.3-3' }} DT</td>
+              <td><b style="color:var(--ac);">{{ s.montant | number:'1.3-3' }} DT</b></td>
+              <td><span class="badge neutral">{{ s.modePaiement }}</span></td>
+              <td>{{ s.employeNom }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: USERS & ROLES -->
+    <div *ngIf="activePage() === 'users'">
+      <div class="top-bar">
+        <div>
+          <h2>Gestion des Utilisateurs &amp; Rôles</h2>
+          <div class="subtitle">Contrôle des accès et affectation aux stations (Sprint 1 — US 5).</div>
+        </div>
+        <button class="p" (click)="openModal('user')">+ Nouvel utilisateur</button>
+      </div>
+
+      <div class="card tw">
+        <table>
+          <thead>
+            <tr>
+              <th>Utilisateur</th>
+              <th>E-mail</th>
+              <th>Téléphone</th>
+              <th>Rôle</th>
+              <th>Station affectée</th>
+              <th style="text-align:right">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let u of users()">
+              <td>
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <div class="av" style="width:28px; height:28px; font-size:12px;">{{ (u.prenom || u.nom).charAt(0).toUpperCase() }}</div>
+                  <b>{{ u.prenom ? u.prenom + ' ' + u.nom : u.nom }}</b>
+                </div>
+              </td>
+              <td>{{ u.email }}</td>
+              <td>{{ u.telephone || '—' }}</td>
+              <td>
+                <select [disabled]="u.id === currentUser().id" [ngModel]="u.role" (ngModelChange)="updateUserRole(u.id, $event)" style="width:auto; padding:6px 10px;">
+                  <option value="admin">👑 Administrateur</option>
+                  <option value="gerant">🏬 Gérant</option>
+                  <option value="employe">⛽ Employé</option>
+                </select>
+              </td>
+              <td>
+                <select [ngModel]="u.stationId" (ngModelChange)="updateUserStation(u.id, $event)" style="width:auto; padding:6px 10px;">
+                  <option [ngValue]="null">— Aucune station —</option>
+                  <option *ngFor="let st of stations()" [value]="st.id">{{ st.nom }}</option>
+                </select>
+              </td>
+              <td class="a">
+                <button class="d" *ngIf="u.id !== currentUser().id" (click)="deleteItem('user', u.id)">Supprimer</button>
+                <span class="mu" *ngIf="u.id === currentUser().id">(Vous)</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- PAGE: PROFILE -->
+    <div *ngIf="activePage() === 'profile'">
+      <div class="top-bar">
+        <div>
+          <h2>Mon Profil</h2>
+          <div class="subtitle">Modifier vos coordonnées (Sprint 1 — US 4).</div>
+        </div>
+      </div>
+
+      <div class="card" style="max-width: 520px;">
+        <form (ngSubmit)="updateProfile()">
+          <div class="form-grid">
+            <div>
+              <label>Nom</label>
+              <input [(ngModel)]="currentUser().nom" name="nom" required>
+            </div>
+            <div>
+              <label>Prénom</label>
+              <input [(ngModel)]="currentUser().prenom" name="prenom">
+            </div>
+          </div>
+
+          <label>Adresse E-mail</label>
+          <input [(ngModel)]="currentUser().email" name="email" type="email" required>
+
+          <label>Téléphone</label>
+          <input [(ngModel)]="currentUser().telephone" name="telephone">
+
+          <div style="margin-top:14px; font-size:13px; color:var(--mu);">
+            Rôle : <b>{{ rolesMap[currentUser().role] }}</b><br>
+            Station : <b>{{ currentUser().station?.nom || 'Non affecté' }}</b>
+          </div>
+
+          <button type="submit" class="p" style="margin-top:16px;">Enregistrer les modifications</button>
+        </form>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- ==========================================================================
+     UNIVERSAL MODAL DIALOG
+     ========================================================================== -->
+<dialog [open]="activeModal() !== null" *ngIf="activeModal()">
+  <form (ngSubmit)="saveModal()">
+    <h3 style="margin-top:0">{{ modalTitle() }}</h3>
+
+    <!-- STATION FORM -->
+    <ng-container *ngIf="activeModal() === 'station'">
+      <label>Nom de la station *</label>
+      <input [(ngModel)]="modalData.nom" name="nom" required placeholder="Ex: Station Agil Charguia">
+
+      <div class="form-grid">
+        <div>
+          <label>Ville *</label>
+          <input [(ngModel)]="modalData.ville" name="ville" required placeholder="Ex: Tunis">
+        </div>
+        <div>
+          <label>Téléphone</label>
+          <input [(ngModel)]="modalData.telephone" name="telephone" placeholder="+216 ...">
+        </div>
+      </div>
+
+      <label>Adresse complète *</label>
+      <input [(ngModel)]="modalData.adresse" name="adresse" required placeholder="Ex: Rue de l'Aéroport">
+
+      <label>État de service</label>
+      <select [(ngModel)]="modalData.etat" name="etat">
+        <option value="Active">Active</option>
+        <option value="Inactive">Inactive</option>
+      </select>
+    </ng-container>
+
+    <!-- FUEL FORM -->
+    <ng-container *ngIf="activeModal() === 'fuel'">
+      <label>Nom du carburant *</label>
+      <input [(ngModel)]="modalData.libelle" name="libelle" required placeholder="Ex: Sans Plomb 95">
+
+      <div class="form-grid">
+        <div>
+          <label>Prix unitaire (DT / L) *</label>
+          <input [(ngModel)]="modalData.prixUnitaire" name="prixUnitaire" type="number" step="0.001" required>
+        </div>
+        <div>
+          <label>Seuil alerte stock (L) *</label>
+          <input [(ngModel)]="modalData.seuilMinimal" name="seuilMinimal" type="number" required>
+        </div>
+      </div>
+
+      <label>Couleur d'affichage</label>
+      <input [(ngModel)]="modalData.couleur" name="couleur" type="color">
+    </ng-container>
+
+    <!-- PUMP FORM -->
+    <ng-container *ngIf="activeModal() === 'pump'">
+      <div *ngIf="currentUser().role === 'admin'">
+        <label>Station *</label>
+        <select [(ngModel)]="modalData.stationId" name="stationId" required>
+          <option *ngFor="let s of stations()" [value]="s.id">{{ s.nom }}</option>
+        </select>
+      </div>
+
+      <div class="form-grid">
+        <div>
+          <label>N° Pompe *</label>
+          <input [(ngModel)]="modalData.numero" name="numero" type="number" min="1" required>
+        </div>
+        <div>
+          <label>Carburant distribué *</label>
+          <select [(ngModel)]="modalData.carburantId" name="carburantId" required>
+            <option *ngFor="let f of fuels()" [value]="f.id">{{ f.libelle }}</option>
+          </select>
+        </div>
+      </div>
+
+      <label>État</label>
+      <select [(ngModel)]="modalData.etat" name="etat">
+        <option value="En service">En service</option>
+        <option value="Maintenance">Maintenance</option>
+        <option value="Hors service">Hors service</option>
+      </select>
+
+      <label>Description</label>
+      <input [(ngModel)]="modalData.description" name="description" placeholder="Ex: Îlot Voitures">
+    </ng-container>
+
+    <!-- TANK FORM -->
+    <ng-container *ngIf="activeModal() === 'tank'">
+      <div *ngIf="currentUser().role === 'admin'">
+        <label>Station *</label>
+        <select [(ngModel)]="modalData.stationId" name="stationId" required>
+          <option *ngFor="let s of stations()" [value]="s.id">{{ s.nom }}</option>
+        </select>
+      </div>
+
+      <label>Carburant stocké *</label>
+      <select [(ngModel)]="modalData.carburantId" name="carburantId" required>
+        <option *ngFor="let f of fuels()" [value]="f.id">{{ f.libelle }}</option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Capacité maximale (L) *</label>
+          <input [(ngModel)]="modalData.capacite" name="capacite" type="number" min="1000" required>
+        </div>
+        <div>
+          <label>Niveau actuel (L) *</label>
+          <input [(ngModel)]="modalData.niveauActuel" name="niveauActuel" type="number" min="0" required>
+        </div>
+      </div>
+    </ng-container>
+
+    <!-- SUPPLIER FORM -->
+    <ng-container *ngIf="activeModal() === 'supplier'">
+      <label>Raison Sociale / Nom *</label>
+      <input [(ngModel)]="modalData.nom" name="nom" required placeholder="Ex: TotalEnergies">
+
+      <div class="form-grid">
+        <div>
+          <label>Téléphone</label>
+          <input [(ngModel)]="modalData.telephone" name="telephone" placeholder="+216 ...">
+        </div>
+        <div>
+          <label>E-mail</label>
+          <input [(ngModel)]="modalData.email" name="email" type="email">
+        </div>
+      </div>
+
+      <label>Matricule Fiscale</label>
+      <input [(ngModel)]="modalData.matriculeFiscale" name="matriculeFiscale" placeholder="0001234A/M/000">
+    </ng-container>
+
+    <!-- DELIVERY FORM -->
+    <ng-container *ngIf="activeModal() === 'delivery'">
+      <div class="form-grid">
+        <div>
+          <label>N° Bon de Livraison *</label>
+          <input [(ngModel)]="modalData.numeroBon" name="numeroBon" required placeholder="BL-2026-099">
+        </div>
+        <div>
+          <label>Fournisseur *</label>
+          <select [(ngModel)]="modalData.fournisseurId" name="fournisseurId" required>
+            <option *ngFor="let sup of suppliers()" [value]="sup.id">{{ sup.nom }}</option>
+          </select>
+        </div>
+      </div>
+
+      <label>Cuve &amp; Carburant destinataire *</label>
+      <select [(ngModel)]="modalData.cuveId" name="cuveId" required>
+        <option *ngFor="let t of tanks()" [value]="t.id">
+          Cuve #{{ t.id }} — {{ t.carburant?.libelle }} (Espace restant: {{ (t.capacite - t.niveauActuel) | number }} L)
+        </option>
+      </select>
+
+      <div class="form-grid">
+        <div>
+          <label>Quantité reçue (L) *</label>
+          <input [(ngModel)]="modalData.quantite" name="quantite" type="number" min="1" required>
+        </div>
+        <div>
+          <label>Prix d'achat HT (DT/L)</label>
+          <input [(ngModel)]="modalData.prixAchat" name="prixAchat" type="number" step="0.001">
+        </div>
+      </div>
+
+      <label>Remarques / Citerne</label>
+      <input [(ngModel)]="modalData.notes" name="notes" placeholder="Citerne A1, chauffeur...">
+    </ng-container>
+
+    <!-- USER FORM -->
+    <ng-container *ngIf="activeModal() === 'user'">
+      <div class="form-grid">
+        <div>
+          <label>Nom *</label>
+          <input [(ngModel)]="modalData.nom" name="nom" required>
+        </div>
+        <div>
+          <label>Prénom</label>
+          <input [(ngModel)]="modalData.prenom" name="prenom">
+        </div>
+      </div>
+
+      <label>Adresse E-mail *</label>
+      <input [(ngModel)]="modalData.email" name="email" type="email" required>
+
+      <label>Mot de passe *</label>
+      <input [(ngModel)]="modalData.motDePasse" name="motDePasse" type="password" required minlength="6" placeholder="••••••••">
+
+      <div class="form-grid">
+        <div>
+          <label>Rôle *</label>
+          <select [(ngModel)]="modalData.role" name="role" required>
+            <option value="employe">Employé</option>
+            <option value="gerant">Gérant</option>
+            <option value="admin">Administrateur</option>
+          </select>
+        </div>
+        <div>
+          <label>Station</label>
+          <select [(ngModel)]="modalData.stationId" name="stationId">
+            <option [ngValue]="null">— Non affecté —</option>
+            <option *ngFor="let s of stations()" [value]="s.id">{{ s.nom }}</option>
+          </select>
+        </div>
+      </div>
+    </ng-container>
+
+    <div class="err" *ngIf="modalError">{{ modalError }}</div>
+
+    <div class="dialog-actions">
+      <button type="button" (click)="closeModal()">Annuler</button>
+      <button type="submit" class="p">Enregistrer</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ==========================================================================
+     PRINTABLE RECEIPT MODAL
+     ========================================================================== -->
+<dialog [open]="activeReceipt() !== null" *ngIf="activeReceipt()">
+  <div style="text-align:center;">
+    <div style="font-size:32px; margin-bottom:8px;">🧾</div>
+    <h3 style="margin:0">Reçu de Distribution</h3>
+    <p class="mu" style="font-size:12px;">FuelManager — Station-service (PostgreSQL)</p>
+
+    <div class="receipt-preview" style="text-align:left; margin:16px 0;">
+      <div class="row"><span>Ticket N° :</span><b>{{ activeReceipt().numeroRecu }}</b></div>
+      <div class="row"><span>Date :</span><span>{{ activeReceipt().dateHeure | date:'dd/MM/yyyy HH:mm' }}</span></div>
+      <div class="row"><span>Pompe :</span><b>Pompe #{{ activeReceipt().pompeNumero }}</b></div>
+      <div class="row"><span>Produit :</span><b>{{ activeReceipt().carburant }}</b></div>
+      <div class="row"><span>Prix unitaire :</span><span>{{ activeReceipt().prixUnitaire | number:'1.3-3' }} DT/L</span></div>
+      <div class="row"><span>Quantité :</span><b>{{ activeReceipt().quantite | number:'1.2-2' }} Litres</b></div>
+      <div class="row"><span>Règlement :</span><span>{{ activeReceipt().modePaiement }}</span></div>
+      <div style="border-top:1px dashed var(--bd); margin-top:10px; padding-top:8px;">
+        <div class="row" style="font-size:18px; font-weight:700;">
+          <span>TOTAL :</span>
+          <span style="color:var(--ac);">{{ activeReceipt().montant | number:'1.3-3' }} DT</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="dialog-actions" style="justify-content:center;">
+      <button type="button" (click)="activeReceipt.set(null); setPage('pos');">Nouvelle Vente</button>
+      <button type="button" class="p" (click)="printReceipt()">🖨️ Imprimer Reçu</button>
+    </div>
+  </div>
+</dialog>

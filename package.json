@@ -1,18 +1,22 @@
 {
   "name": "fuel-manager",
   "version": "1.0.0",
-  "description": "FuelManager - Système de gestion d'une société de carburant (Sprint 1 & 2)",
+  "description": "FuelManager - Système de gestion d'une société de carburant (Angular + PostgreSQL) - ISET Charguia",
   "main": "server.js",
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
-    "seed": "node data/seed.js"
+    "build": "cd frontend && ng build",
+    "dev:backend": "node --watch server.js",
+    "dev:angular": "cd frontend && ng serve --port 4200",
+    "seed": "node -e \"import { initPostgres, seedPostgres, pool } from './server/db.js'; await initPostgres(); const client = await pool.connect(); await seedPostgres(client); client.release(); console.log('PostgreSQL reseeded!'); process.exit(0);\""
   },
   "keywords": [
     "fuel-manager",
     "gas-station",
     "iset-charguia",
+    "angular",
+    "postgresql",
     "express",
     "jwt",
     "sprint-1",
@@ -24,6 +28,7 @@
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.5",
     "express": "^4.21.2",
-    "jsonwebtoken": "^9.0.2"
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.0"
   }
 }

@@ -1,8 +1,10 @@
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 
+import { initPostgres } from './server/db.js';
 import authRoutes from './server/routes/auth.js';
 import usersRoutes from './server/routes/users.js';
 import stationsRoutes from './server/routes/stations.js';
@@ -25,8 +27,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve frontend static files
-app.use(express.static(path.join(__dirname, 'public')));
+// Determine Angular build folder vs public static folder
+const angularDistBrowser = path.join(__dirname, 'frontend', 'dist', 'frontend', 'browser');
+const staticDir = fs.existsSync(angularDistBrowser) ? angularDistBrowser : path.join(__dirname, 'public');
+
+app.use(express.static(staticDir));
 
 // API Routes
 app.use('/api/auth', authRoutes);
@@ -44,6 +49,9 @@ app.use('/api/stats', statsRoutes);
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
+    frontend: fs.existsSync(angularDistBrowser) ? 'Angular 21 (Production Build)' : 'Vanilla SPA',
+    database: 'PostgreSQL 18 (Live pgAdmin)',
+    dbName: 'fuel_manager_db',
     app: 'FUEL//MANAGER',
     version: '1.0.0 (Sprint 1 & 2)',
     institution: 'ISET Charguia - PFE / Intégration',
@@ -54,7 +62,7 @@ app.get('/api/health', (req, res) => {
 
 // Single Page Application fallback to index.html
 app.use((req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+  res.sendFile(path.join(staticDir, 'index.html'));
 });
 
 // Global error handler
@@ -66,10 +74,23 @@ app.use((err, req, res, next) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`=======================================================`);
-  console.log(`⛽ FUEL//MANAGER - Application Web de Gestion de Carburant`);
-  console.log(`🚀 Serveur actif sur : http://localhost:${PORT}`);
-  console.log(`🎓 Projet ISET Charguia - Encadré par Mme Sonia Gannar`);
-  console.log(`=======================================================`);
-});
+// Start server after connecting to PostgreSQL
+async function startServer() {
+  try {
+    await initPostgres();
+    app.listen(PORT, () => {
+      console.log(`=======================================================`);
+      console.log(`⛽ FUEL//MANAGER - Application Web de Gestion de Carburant`);
+      console.log(`🚀 Serveur actif sur : http://localhost:${PORT}`);
+      console.log(`🅰️  Frontend         : Angular 21`);
+      console.log(`🐘 Base de données  : PostgreSQL 18 (fuel_manager_db)`);
+      console.log(`🎓 Projet ISET Charguia - Encadré par Mme Sonia Gannar`);
+      console.log(`=======================================================`);
+    });
+  } catch (err) {
+    console.error('Échec critique du démarrage PostgreSQL:', err);
+    process.exit(1);
+  }
+}
+
+startServer();

@@ -1,152 +1,153 @@
 import express from 'express';
-import { db } from '../database.js';
+import { pool } from '../db.js';
 import { authenticate } from '../middleware/auth.js';
 
 const router = express.Router();
-
 router.use(authenticate);
 
-// US 16: Consulter les pompes (filtrées par station pour gérant/employé, toutes pour admin)
-router.get('/', (req, res) => {
-  let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-  
-  if (req.user.role === 'gerant' || req.user.role === 'employe') {
-    stationId = req.user.stationId;
-    if (!stationId) {
-      return res.status(403).json({ message: 'Vous n’êtes affecté à aucune station.' });
+// US 16: Consulter les pompes
+router.get('/', async (req, res) => {
+  try {
+    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
+    if (req.user.role === 'gerant' || req.user.role === 'employe') {
+      stationId = req.user.stationId;
+      if (!stationId) return res.status(403).json({ message: 'Vous n’êtes affecté à aucune station.' });
     }
-  }
 
-  let pumps = stationId 
-    ? db.filter('pumps', p => p.stationId === stationId)
-    : db.collection('pumps');
+    let queryText = `
+      SELECT p.id, p.station_id as "stationId", p.numero, p.carburant_id as "carburantId", p.etat, p.description,
+             json_build_object('id', f.id, 'libelle', f.libelle, 'prixUnitaire', f.prix_unitaire, 'couleur', f.couleur) as carburant,
+             json_build_object('id', s.id, 'nom', s.nom) as station
+      FROM pumps p
+      JOIN fuels f ON p.carburant_id = f.id
+      JOIN stations s ON p.station_id = s.id
+    `;
+    const params = [];
+    if (stationId) {
+      queryText += ' WHERE p.station_id = $1';
+      params.push(stationId);
+    }
+    queryText += ' ORDER BY p.station_id ASC, p.numero ASC';
 
-  // Enrich with fuel and station info
-  const enriched = pumps.map(p => {
-    const fuel = db.findById('fuels', p.carburantId);
-    const station = db.findById('stations', p.stationId);
-    return {
+    const result = await pool.query(queryText, params);
+    const pumps = result.rows.map(p => ({
       ...p,
-      carburant: fuel,
-      station: station ? { id: station.id, nom: station.nom } : null
-    };
-  });
-
-  res.json(enriched);
+      carburant: {
+        ...p.carburant,
+        prixUnitaire: Number(p.carburant.prixUnitaire)
+      }
+    }));
+    res.json(pumps);
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la récupération des pompes.' });
+  }
 });
 
-// US 14: Ajouter une pompe (Gérant de station ou Admin)
-router.post('/', (req, res) => {
-  if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Seuls les gérants et administrateurs peuvent ajouter une pompe.' });
+// US 14: Ajouter une pompe
+router.post('/', async (req, res) => {
+  try {
+    if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Action non autorisée.' });
+    }
+
+    let stationId = req.user.role === 'gerant' ? req.user.stationId : Number(req.body.stationId);
+    if (!stationId) return res.status(400).json({ message: 'Station non spécifiée.' });
+
+    const { numero, carburantId, etat, description } = req.body;
+    if (!numero || !carburantId) return res.status(400).json({ message: 'Numéro et carburant sont requis.' });
+
+    const num = Number(numero);
+    const carbId = Number(carburantId);
+
+    const check = await pool.query('SELECT id FROM pumps WHERE station_id = $1 AND numero = $2', [stationId, num]);
+    if (check.rows.length > 0) {
+      return res.status(409).json({ message: `La pompe n° ${num} existe déjà pour cette station.` });
+    }
+
+    const insertRes = await pool.query(`
+      INSERT INTO pumps (station_id, numero, carburant_id, etat, description)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, station_id as "stationId", numero, carburant_id as "carburantId", etat, description
+    `, [stationId, num, carbId, etat || 'En service', description ? description.trim() : `Pompe ${num}`]);
+
+    const fuelRes = await pool.query('SELECT id, libelle, prix_unitaire as "prixUnitaire", couleur FROM fuels WHERE id = $1', [carbId]);
+    const f = fuelRes.rows[0];
+
+    res.status(201).json({
+      ...insertRes.rows[0],
+      carburant: { ...f, prixUnitaire: Number(f.prixUnitaire) }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de l’ajout de la pompe.' });
   }
-
-  let stationId = req.user.role === 'gerant' ? req.user.stationId : Number(req.body.stationId);
-  if (!stationId) {
-    return res.status(400).json({ message: 'Station non spécifiée ou non affectée au gérant.' });
-  }
-
-  const { numero, carburantId, etat, description } = req.body;
-  if (!numero || !carburantId) {
-    return res.status(400).json({ message: 'Numéro de pompe et carburant sont requis.' });
-  }
-
-  const num = Number(numero);
-  const carbId = Number(carburantId);
-
-  // Validate fuel exists
-  const fuel = db.findById('fuels', carbId);
-  if (!fuel) {
-    return res.status(400).json({ message: 'Type de carburant invalide.' });
-  }
-
-  // Check unique pump number in this station
-  const existing = db.find('pumps', p => p.stationId === stationId && p.numero === num);
-  if (existing) {
-    return res.status(409).json({ message: `La pompe n° ${num} existe déjà pour cette station.` });
-  }
-
-  const validEtats = ['En service', 'Hors service', 'Maintenance'];
-  const newPump = db.insert('pumps', {
-    stationId,
-    numero: num,
-    carburantId: carbId,
-    etat: validEtats.includes(etat) ? etat : 'En service',
-    description: description ? description.trim() : `Pompe ${num}`
-  });
-
-  res.status(201).json({
-    ...newPump,
-    carburant: fuel
-  });
 });
 
-// US 15: Modifier une pompe (Gérant ou Admin)
-router.put('/:id', (req, res) => {
-  if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Action non autorisée.' });
-  }
-
-  const id = Number(req.params.id);
-  const pump = db.findById('pumps', id);
-  if (!pump) {
-    return res.status(404).json({ message: 'Pompe introuvable.' });
-  }
-
-  if (req.user.role === 'gerant' && pump.stationId !== req.user.stationId) {
-    return res.status(403).json({ message: 'Vous ne pouvez modifier que les pompes de votre station.' });
-  }
-
-  const patch = {};
-  if (req.body.numero !== undefined) {
-    const num = Number(req.body.numero);
-    const existing = db.find('pumps', p => p.stationId === pump.stationId && p.numero === num && p.id !== id);
-    if (existing) {
-      return res.status(409).json({ message: `Le numéro de pompe ${num} est déjà utilisé dans cette station.` });
+// US 15: Modifier une pompe
+router.put('/:id', async (req, res) => {
+  try {
+    if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Action non autorisée.' });
     }
-    patch.numero = num;
-  }
 
-  if (req.body.carburantId !== undefined) {
-    const carbId = Number(req.body.carburantId);
-    if (!db.findById('fuels', carbId)) {
-      return res.status(400).json({ message: 'Carburant invalide.' });
+    const id = Number(req.params.id);
+    const check = await pool.query('SELECT * FROM pumps WHERE id = $1', [id]);
+    if (check.rows.length === 0) return res.status(404).json({ message: 'Pompe introuvable.' });
+
+    const current = check.rows[0];
+    if (req.user.role === 'gerant' && current.station_id !== req.user.stationId) {
+      return res.status(403).json({ message: 'Vous ne pouvez modifier que les pompes de votre station.' });
     }
-    patch.carburantId = carbId;
-  }
 
-  if (req.body.etat && ['En service', 'Hors service', 'Maintenance'].includes(req.body.etat)) {
-    patch.etat = req.body.etat;
-  }
+    const { numero, carburantId, etat, description } = req.body;
+    const updated = await pool.query(`
+      UPDATE pumps
+      SET numero = COALESCE($1, numero),
+          carburant_id = COALESCE($2, carburant_id),
+          etat = COALESCE($3, etat),
+          description = COALESCE($4, description)
+      WHERE id = $5
+      RETURNING id, station_id as "stationId", numero, carburant_id as "carburantId", etat, description
+    `, [
+      numero !== undefined ? Number(numero) : null,
+      carburantId !== undefined ? Number(carburantId) : null,
+      etat || null,
+      description !== undefined ? description.trim() : null,
+      id
+    ]);
 
-  if (req.body.description !== undefined) {
-    patch.description = req.body.description.trim();
-  }
+    const pump = updated.rows[0];
+    const fuelRes = await pool.query('SELECT id, libelle, prix_unitaire as "prixUnitaire", couleur FROM fuels WHERE id = $1', [pump.carburantId]);
+    const f = fuelRes.rows[0];
 
-  const updated = db.update('pumps', id, patch);
-  const fuel = db.findById('fuels', updated.carburantId);
-  res.json({ ...updated, carburant: fuel });
+    res.json({
+      ...pump,
+      carburant: { ...f, prixUnitaire: Number(f.prixUnitaire) }
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la modification de la pompe.' });
+  }
 });
 
 // Supprimer une pompe
-router.delete('/:id', (req, res) => {
-  if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Action non autorisée.' });
-  }
+router.delete('/:id', async (req, res) => {
+  try {
+    if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
+      return res.status(403).json({ message: 'Action non autorisée.' });
+    }
 
-  const id = Number(req.params.id);
-  const pump = db.findById('pumps', id);
-  if (!pump) {
-    return res.status(404).json({ message: 'Pompe introuvable.' });
-  }
+    const id = Number(req.params.id);
+    const check = await pool.query('SELECT station_id FROM pumps WHERE id = $1', [id]);
+    if (check.rows.length === 0) return res.status(404).json({ message: 'Pompe introuvable.' });
 
-  if (req.user.role === 'gerant' && pump.stationId !== req.user.stationId) {
-    return res.status(403).json({ message: 'Vous ne pouvez supprimer que les pompes de votre station.' });
-  }
+    if (req.user.role === 'gerant' && check.rows[0].station_id !== req.user.stationId) {
+      return res.status(403).json({ message: 'Vous ne pouvez supprimer que les pompes de votre station.' });
+    }
 
-  db.delete('pumps', id);
-  res.json({ message: 'Pompe supprimée avec succès.' });
+    await pool.query('DELETE FROM pumps WHERE id = $1', [id]);
+    res.json({ message: 'Pompe supprimée avec succès.' });
+  } catch (err) {
+    res.status(500).json({ message: 'Erreur lors de la suppression de la pompe.' });
+  }
 });
 
 export default router;
-
