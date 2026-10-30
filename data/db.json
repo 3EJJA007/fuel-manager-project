@@ -1,0 +1,393 @@
+{
+  "users": [
+    {
+      "id": 1,
+      "nom": "Admin",
+      "prenom": "Principal",
+      "email": "admin@fuelmanager.tn",
+      "motDePasse": "$2b$10$WfVmkxn2wqi4X3SU38DLxuqL3GK46LKJgFJC1mghyM8c4usAR9lB2",
+      "role": "admin",
+      "stationId": null,
+      "telephone": "+216 71 100 200",
+      "dateCreation": "2026-10-01T08:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "nom": "Gérant",
+      "prenom": "Charguia",
+      "email": "gerant.charguia@fuelmanager.tn",
+      "motDePasse": "$2b$10$9qTrGNIZusxfYOhW5/tEP.dPUIx2.7C1b/00SSgzFFXYSkN/iZBg6",
+      "role": "gerant",
+      "stationId": 1,
+      "telephone": "+216 98 123 456",
+      "dateCreation": "2026-10-02T09:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "nom": "Gérant",
+      "prenom": "Lac 2",
+      "email": "gerant.lac@fuelmanager.tn",
+      "motDePasse": "$2b$10$SsPy66qxT7phxp1r1BioW.SsVzOirsnA77CF.BdgKYYdrBzTULuoW",
+      "role": "gerant",
+      "stationId": 2,
+      "telephone": "+216 98 654 321",
+      "dateCreation": "2026-10-03T10:00:00.000Z"
+    },
+    {
+      "id": 4,
+      "nom": "Employé",
+      "prenom": "Ahmed",
+      "email": "employe.charguia@fuelmanager.tn",
+      "motDePasse": "$2b$10$sm.4JpSWDXOChR3z7D8X3.Sq1ZGCVL1E02XnEyhQrelKpSS9yGIxy",
+      "role": "employe",
+      "stationId": 1,
+      "telephone": "+216 55 444 333",
+      "dateCreation": "2026-10-05T07:30:00.000Z"
+    },
+    {
+      "id": 5,
+      "nom": "Employé",
+      "prenom": "Sami",
+      "email": "employe.lac@fuelmanager.tn",
+      "motDePasse": "$2b$10$xcdlBPHM0/VyozMCsfguAOY3gqFdcSAexOMDMyTDbh0q/61tjucbG",
+      "role": "employe",
+      "stationId": 2,
+      "telephone": "+216 50 111 222",
+      "dateCreation": "2026-10-05T07:30:00.000Z"
+    },
+    {
+      "nom": "HM",
+      "prenom": "Noussair",
+      "email": "test@gmail.com",
+      "motDePasse": "$2b$10$w0cSJjQ82gW9hQUAQVhcguRDbuA2NcIF9VF4UQPkQ0/xIy3UGVD12",
+      "role": "employe",
+      "stationId": null,
+      "telephone": "",
+      "dateCreation": "2026-10-30T11:02:01.314Z",
+      "id": 6
+    }
+  ],
+  "stations": [
+    {
+      "id": 1,
+      "nom": "Station ISET Charguia",
+      "adresse": "Rue de l'Aéroport, Charguia II",
+      "ville": "Tunis",
+      "telephone": "+216 71 800 100",
+      "etat": "Active",
+      "dateCreation": "2026-10-01T08:00:00.000Z"
+    },
+    {
+      "id": 2,
+      "nom": "Station Total Lac 2",
+      "adresse": "Les Berges du Lac 2, Voie Express",
+      "ville": "Tunis",
+      "telephone": "+216 71 800 200",
+      "etat": "Active",
+      "dateCreation": "2026-10-02T08:00:00.000Z"
+    },
+    {
+      "id": 3,
+      "nom": "Station Agil Ariana",
+      "adresse": "Avenue Habib Bourguiba",
+      "ville": "Ariana",
+      "telephone": "+216 71 800 300",
+      "etat": "Active",
+      "dateCreation": "2026-10-03T08:00:00.000Z"
+    }
+  ],
+  "fuels": [
+    {
+      "id": 1,
+      "libelle": "Sans Plomb 95",
+      "prixUnitaire": 2.525,
+      "seuilMinimal": 3500,
+      "description": "Carburant essence super sans plomb indice d'octane 95",
+      "couleur": "#10b981"
+    },
+    {
+      "id": 2,
+      "libelle": "Gasoil 50",
+      "prixUnitaire": 2.2,
+      "seuilMinimal": 4000,
+      "description": "Gasoil désulfuré haute performance (50 ppm)",
+      "couleur": "#f59e0b"
+    },
+    {
+      "id": 3,
+      "libelle": "Gasoil Ordinaire",
+      "prixUnitaire": 1.98,
+      "seuilMinimal": 2500,
+      "description": "Gasoil standard pour véhicules lourds et utilitaires",
+      "couleur": "#3b82f6"
+    }
+  ],
+  "pumps": [
+    {
+      "id": 1,
+      "stationId": 1,
+      "numero": 1,
+      "carburantId": 1,
+      "etat": "En service",
+      "description": "Îlot A - Piste Voitures"
+    },
+    {
+      "id": 2,
+      "stationId": 1,
+      "numero": 2,
+      "carburantId": 2,
+      "etat": "En service",
+      "description": "Îlot A - Piste Voitures"
+    },
+    {
+      "id": 3,
+      "stationId": 1,
+      "numero": 3,
+      "carburantId": 3,
+      "etat": "En service",
+      "description": "Îlot B - Poids Lourds"
+    },
+    {
+      "id": 4,
+      "stationId": 1,
+      "numero": 4,
+      "carburantId": 1,
+      "etat": "Maintenance",
+      "description": "Îlot B - Pompage Rapide"
+    },
+    {
+      "id": 5,
+      "stationId": 2,
+      "numero": 1,
+      "carburantId": 1,
+      "etat": "En service",
+      "description": "Borne 1"
+    },
+    {
+      "id": 6,
+      "stationId": 2,
+      "numero": 2,
+      "carburantId": 2,
+      "etat": "En service",
+      "description": "Borne 2"
+    }
+  ],
+  "tanks": [
+    {
+      "id": 1,
+      "stationId": 1,
+      "carburantId": 1,
+      "capacite": 20000,
+      "niveauActuel": 16180,
+      "dateMiseEnService": "2024-01-15"
+    },
+    {
+      "id": 2,
+      "stationId": 1,
+      "carburantId": 2,
+      "capacite": 25000,
+      "niveauActuel": 6800,
+      "dateMiseEnService": "2024-01-15"
+    },
+    {
+      "id": 3,
+      "stationId": 1,
+      "carburantId": 3,
+      "capacite": 15000,
+      "niveauActuel": 2100,
+      "dateMiseEnService": "2024-01-15"
+    },
+    {
+      "id": 4,
+      "stationId": 2,
+      "carburantId": 1,
+      "capacite": 20000,
+      "niveauActuel": 16500,
+      "dateMiseEnService": "2024-05-10"
+    },
+    {
+      "id": 5,
+      "stationId": 2,
+      "carburantId": 2,
+      "capacite": 20000,
+      "niveauActuel": 11000,
+      "dateMiseEnService": "2024-05-10"
+    }
+  ],
+  "suppliers": [
+    {
+      "id": 1,
+      "nom": "SNDP AGIL Tunisie",
+      "telephone": "+216 71 700 800",
+      "email": "contact@agil.com.tn",
+      "adresse": "Zone Pétrolière Radès, Tunis",
+      "matriculeFiscale": "0001234A/M/000"
+    },
+    {
+      "id": 2,
+      "nom": "TotalEnergies Tunisie",
+      "telephone": "+216 71 180 000",
+      "email": "service.livraison@totalenergies.tn",
+      "adresse": "Zone Industrielle Saint-Gobain, Tunis",
+      "matriculeFiscale": "0005678B/M/000"
+    },
+    {
+      "id": 3,
+      "nom": "Ola Energy Tunisie",
+      "telephone": "+216 71 860 123",
+      "email": "commandes@olaenergy.com.tn",
+      "adresse": "Les Berges du Lac, Tunis",
+      "matriculeFiscale": "0009999C/M/000"
+    }
+  ],
+  "deliveries": [
+    {
+      "id": 1,
+      "numeroBon": "BL-2026-001",
+      "stationId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "fournisseurId": 1,
+      "quantite": 5000,
+      "prixAchat": 2.15,
+      "date": "2026-10-25T10:30:00Z",
+      "notes": "Livraison citerne semi-remorque A3"
+    },
+    {
+      "id": 2,
+      "numeroBon": "BL-2026-002",
+      "stationId": 1,
+      "cuveId": 2,
+      "carburantId": 2,
+      "fournisseurId": 2,
+      "quantite": 6000,
+      "prixAchat": 1.85,
+      "date": "2026-10-26T14:15:00Z",
+      "notes": "Livraison standard sans réserve"
+    },
+    {
+      "numeroBon": "BL-2026-099",
+      "stationId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "fournisseurId": 1,
+      "quantite": 2000,
+      "prixAchat": 2.15,
+      "date": "2026-10-30T10:50:25.212Z",
+      "notes": "Livraison test citerne",
+      "id": 3
+    }
+  ],
+  "sales": [
+    {
+      "id": 1,
+      "numeroRecu": "REC-1001",
+      "stationId": 1,
+      "pompeId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "employeId": 4,
+      "quantite": 40,
+      "prixUnitaire": 2.525,
+      "montant": 101,
+      "dateHeure": "2026-10-29T10:05:00Z",
+      "modePaiement": "Espèces"
+    },
+    {
+      "id": 2,
+      "numeroRecu": "REC-1002",
+      "stationId": 1,
+      "pompeId": 2,
+      "cuveId": 2,
+      "carburantId": 2,
+      "employeId": 4,
+      "quantite": 55,
+      "prixUnitaire": 2.2,
+      "montant": 121,
+      "dateHeure": "2026-10-29T11:20:00Z",
+      "modePaiement": "Carte Bancaire"
+    },
+    {
+      "id": 3,
+      "numeroRecu": "REC-1003",
+      "stationId": 1,
+      "pompeId": 3,
+      "cuveId": 3,
+      "carburantId": 3,
+      "employeId": 4,
+      "quantite": 70,
+      "prixUnitaire": 1.98,
+      "montant": 138.6,
+      "dateHeure": "2026-10-29T15:45:00Z",
+      "modePaiement": "Espèces"
+    },
+    {
+      "numeroRecu": "REC-415924-4",
+      "stationId": 1,
+      "pompeId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "employeId": 4,
+      "quantite": 20,
+      "prixUnitaire": 2.525,
+      "montant": 50.5,
+      "dateHeure": "2026-10-30T10:50:15.924Z",
+      "modePaiement": "Esp�ces",
+      "id": 4
+    }
+  ],
+  "stock_movements": [
+    {
+      "id": 1,
+      "dateHeure": "2026-10-25T10:30:00Z",
+      "stationId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "type": "ENTREE_LIVRAISON",
+      "quantite": 5000,
+      "ancienNiveau": 9200,
+      "nouveauNiveau": 14200,
+      "referenceId": "BL-2026-001",
+      "auteur": "Gérant Charguia"
+    },
+    {
+      "id": 2,
+      "dateHeure": "2026-10-29T10:05:00Z",
+      "stationId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "type": "SORTIE_VENTE",
+      "quantite": 40,
+      "ancienNiveau": 14240,
+      "nouveauNiveau": 14200,
+      "referenceId": "REC-1001",
+      "auteur": "Employé Ahmed"
+    },
+    {
+      "dateHeure": "2026-10-30T10:50:15.924Z",
+      "stationId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "type": "SORTIE_VENTE",
+      "quantite": 20,
+      "ancienNiveau": 14200,
+      "nouveauNiveau": 14180,
+      "referenceId": "REC-415924-4",
+      "auteur": "Ahmed Employé",
+      "id": 3
+    },
+    {
+      "dateHeure": "2026-10-30T10:50:25.212Z",
+      "stationId": 1,
+      "cuveId": 1,
+      "carburantId": 1,
+      "type": "ENTREE_LIVRAISON",
+      "quantite": 2000,
+      "ancienNiveau": 14180,
+      "nouveauNiveau": 16180,
+      "referenceId": "BL-2026-099",
+      "auteur": "Charguia Gérant",
+      "id": 4
+    }
+  ]
+}
