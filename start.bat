@@ -1,5 +1,5 @@
 @echo off
-title FUEL//MANAGER - Angular & PostgreSQL Server
+title FUEL//MANAGER - Angular and PostgreSQL Server
 echo =======================================================
 echo    FUEL//MANAGER - Projet ISET Charguia
 echo    Frontend : Angular 21
@@ -26,7 +26,11 @@ if not exist frontend\dist\frontend\browser (
 )
 
 echo.
-echo [INFO] Lancement du serveur unifie sur http://localhost:3000 ...
+echo [INFO] Verification du service PostgreSQL...
+powershell -Command "if (Test-Path 'C:\Program Files\PostgreSQL\18\data\postmaster.pid') { $pidNum = (Get-Content 'C:\Program Files\PostgreSQL\18\data\postmaster.pid')[0].Trim(); if (-not (Get-Process -Id $pidNum -ErrorAction SilentlyContinue)) { Remove-Item 'C:\Program Files\PostgreSQL\18\data\postmaster.pid' -Force } }; if (-not (Test-NetConnection -ComputerName 127.0.0.1 -Port 5432 -InformationLevel Quiet)) { & 'C:\Program Files\PostgreSQL\18\bin\pg_ctl.exe' start -D 'C:\Program Files\PostgreSQL\18\data' }" >nul 2>nul
+
+echo.
+echo [INFO] Lancement du serveur sur http://localhost:3000 ...
 start http://localhost:3000
 
 call npm start

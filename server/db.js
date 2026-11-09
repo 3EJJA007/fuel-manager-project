@@ -1,5 +1,8 @@
 import pg from 'pg';
 import bcrypt from 'bcryptjs';
+import fs from 'fs';
+import path from 'path';
+import { execSync } from 'child_process';
 
 const { Pool, Client } = pg;
 
@@ -14,35 +17,94 @@ export const dbConfig = {
 
 export let pool = null;
 
+// Helper to auto-start local PostgreSQL if stopped
+async function tryAutoStartPostgres() {
+  const pgCtl = 'C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe';
+  const dataDir = 'C:\\Program Files\\PostgreSQL\\18\\data';
+  const pidFile = path.join(dataDir, 'postmaster.pid');
+
+  if (fs.existsSync(pgCtl) && fs.existsSync(dataDir)) {
+    console.log('[PostgreSQL] Service non détecté. Tentative de démarrage automatique...');
+    // Clean up orphaned postmaster.pid if process is not running
+    if (fs.existsSync(pidFile)) {
+      try {
+        const content = fs.readFileSync(pidFile, 'utf8');
+        const pid = parseInt(content.split('\n')[0].trim(), 10);
+        let isRunning = false;
+        try {
+          process.kill(pid, 0);
+          isRunning = true;
+        } catch {
+          isRunning = false;
+        }
+        if (!isRunning) {
+          fs.unlinkSync(pidFile);
+          console.log('[PostgreSQL] Fichier orphelin postmaster.pid nettoyé.');
+        }
+      } catch {}
+    }
+
+    try {
+      execSync(`"${pgCtl}" start -D "${dataDir}"`, { stdio: 'ignore' });
+      // Wait 2 seconds for socket initialization
+      await new Promise(r => setTimeout(r, 2000));
+      console.log('[PostgreSQL] Démarrage automatique réussi.');
+    } catch (e) {
+      console.warn('[PostgreSQL] Note démarrage auto:', e.message);
+    }
+  }
+}
+
 // Ensure database exists and schema is up to date
 export async function initPostgres() {
-  // 1. Check if fuel_manager_db exists, create if not
-  try {
-    const adminClient = new Client({
-      host: dbConfig.host,
-      port: dbConfig.port,
-      user: dbConfig.user,
-      password: dbConfig.password,
-      database: 'postgres'
-    });
-    await adminClient.connect();
-    const res = await adminClient.query(
-      "SELECT 1 FROM pg_database WHERE datname = $1",
-      [dbConfig.database]
-    );
-    if (res.rows.length === 0) {
-      console.log(`[PostgreSQL] Création de la base de données "${dbConfig.database}"...`);
-      await adminClient.query(`CREATE DATABASE "${dbConfig.database}"`);
-      console.log(`[PostgreSQL] Base "${dbConfig.database}" créée avec succès.`);
+  let connected = false;
+
+  // Try connecting or auto-starting up to 2 times
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const adminClient = new Client({
+        host: dbConfig.host,
+        port: dbConfig.port,
+        user: dbConfig.user,
+        password: dbConfig.password,
+        database: 'postgres'
+      });
+      await adminClient.connect();
+      const res = await adminClient.query(
+        "SELECT 1 FROM pg_database WHERE datname = $1",
+        [dbConfig.database]
+      );
+      if (res.rows.length === 0) {
+        console.log(`[PostgreSQL] Création de la base de données "${dbConfig.database}"...`);
+        await adminClient.query(`CREATE DATABASE "${dbConfig.database}"`);
+        console.log(`[PostgreSQL] Base "${dbConfig.database}" créée avec succès.`);
+      }
+      await adminClient.end();
+      connected = true;
+      break;
+    } catch (err) {
+      if (err.code === 'ECONNREFUSED' && attempt === 1) {
+        await tryAutoStartPostgres();
+      } else {
+        console.warn('[PostgreSQL] Note vérification DB:', err.message);
+      }
     }
-    await adminClient.end();
-  } catch (err) {
-    console.warn('[PostgreSQL] Note lors de la vérification initiale de la DB:', err.message);
   }
 
-  // 2. Connect to fuel_manager_db
+  // 2. Connect to fuel_manager_db with retry
   pool = new Pool(dbConfig);
-  const client = await pool.connect();
+  let client = null;
+  try {
+    client = await pool.connect();
+  } catch (err) {
+    if (err.code === 'ECONNREFUSED') {
+      await tryAutoStartPostgres();
+      client = await pool.connect();
+    } else {
+      throw err;
+    }
+  }
+
   console.log(`[PostgreSQL] Connecté à la base "${dbConfig.database}" sur le port ${dbConfig.port}`);
 
   try {
