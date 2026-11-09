@@ -1,9 +1,7 @@
-<!-- Toast Notifications -->
 <div id="toast" [class]="toastType()" *ngIf="showToast()">
   {{ toastMessage() }}
 </div>
 
-<!-- 1. AUTH SCREEN (IF NOT LOGGED IN) -->
 <div class="authw" *ngIf="!currentUser()">
   <div class="hero">
     <div class="logo">
@@ -41,6 +39,15 @@
           </div>
         </div>
 
+        <div *ngIf="authTab() === 'register'">
+          <label>Rôle souhaité *</label>
+          <select [(ngModel)]="authRole" name="role" required>
+            <option value="employe">⛽ Employé</option>
+            <option value="gerant">🏬 Gérant de station</option>
+            <option value="admin">👑 Administrateur</option>
+          </select>
+        </div>
+
         <label>Adresse E-mail *</label>
         <input [(ngModel)]="authEmail" name="email" type="email" required placeholder="nom@fuelmanager.tn">
 
@@ -74,9 +81,7 @@
   </div>
 </div>
 
-<!-- 2. MAIN APPLICATION (WHEN LOGGED IN) -->
 <div class="app" *ngIf="currentUser()">
-  <!-- Sidebar -->
   <aside class="side">
     <div class="logo">
       <i>⛽</i>
@@ -86,14 +91,18 @@
       </div>
     </div>
 
-    <!-- Station Pill -->
     <div class="station-pill" *ngIf="currentUser().station">
       <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Station rattachée</span>
       <b>{{ currentUser().station.nom }}</b>
       <span>{{ currentUser().station.ville }}</span>
     </div>
 
-    <!-- Navigation by Role -->
+    <div class="station-pill" *ngIf="currentUser().role !== 'admin' && !currentUser().station" style="border-color: var(--warn); background: rgba(232, 89, 12, 0.1);">
+      <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px; color: var(--warn);">Statut</span>
+      <b style="color: var(--warn);">En attente d'affectation</b>
+      <span style="font-size: 11px;">Aucune station assignée</span>
+    </div>
+
     <nav>
       <ng-container *ngIf="currentUser().role === 'admin'">
         <button [class.on]="activePage() === 'dashboard'" (click)="setPage('dashboard')"><i>📊</i> Tableau de bord</button>
@@ -115,6 +124,7 @@
         <button [class.on]="activePage() === 'tanks'" (click)="setPage('tanks')"><i>🧪</i> Cuves de la station</button>
         <button [class.on]="activePage() === 'deliveries'" (click)="setPage('deliveries')"><i>🚚</i> Entrées de carburant</button>
         <button [class.on]="activePage() === 'sales'" (click)="setPage('sales')"><i>💰</i> Ventes de la station</button>
+        <button [class.on]="activePage() === 'users'" (click)="setPage('users')"><i>👥</i> Personnel de ma station</button>
         <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
       </ng-container>
 
@@ -126,7 +136,6 @@
       </ng-container>
     </nav>
 
-    <!-- User Profile Strip -->
     <div class="me">
       <div class="av">{{ (currentUser().prenom || currentUser().nom).charAt(0).toUpperCase() }}</div>
       <div>
@@ -140,9 +149,16 @@
     </div>
   </aside>
 
-  <!-- Main Content -->
   <main>
-    <!-- PAGE: DASHBOARD -->
+    <div class="card" *ngIf="currentUser().role !== 'admin' && !currentUser().stationId" style="border: 2px dashed var(--warn); background: rgba(232, 89, 12, 0.06); padding: 28px; margin-bottom: 24px;">
+      <h3 style="margin-top:0; color:var(--warn); display:flex; align-items:center; gap:8px;">
+        ⏳ Compte créé — En attente d'affectation à une station
+      </h3>
+      <p style="margin: 6px 0 0; color:var(--tx);">
+        Votre compte est actif en tant que <b>{{ rolesMap[currentUser().role] }}</b>. Comme vous venez de vous inscrire, vous n'avez pas encore d'options ni de données opérationnelles associées. Un administrateur doit vous rattacher à une station-service dans la gestion des utilisateurs pour vous donner accès aux pompes, cuves et opérations de caisse.
+      </p>
+    </div>
+
     <div *ngIf="activePage() === 'dashboard'">
       <div class="top-bar">
         <div>
@@ -177,8 +193,7 @@
         </div>
       </div>
 
-      <!-- Gauges -->
-      <div class="card">
+      <div class="card" *ngIf="currentUser().role === 'admin' || currentUser().stationId">
         <div class="card-header">
           <h3 class="card-title">🛢️ Niveaux de Stock par Carburant (PostgreSQL Live)</h3>
           <button class="sm" (click)="setPage('tanks')">Gérer les cuves</button>
@@ -214,7 +229,6 @@
       </div>
     </div>
 
-    <!-- PAGE: STATIONS -->
     <div *ngIf="activePage() === 'stations'">
       <div class="top-bar">
         <div>
@@ -255,7 +269,6 @@
       </div>
     </div>
 
-    <!-- PAGE: FUELS -->
     <div *ngIf="activePage() === 'fuels'">
       <div class="top-bar">
         <div>
@@ -299,17 +312,16 @@
       </div>
     </div>
 
-    <!-- PAGE: PUMPS -->
     <div *ngIf="activePage() === 'pumps'">
       <div class="top-bar">
         <div>
           <h2>Pompes de distribution</h2>
           <div class="subtitle">Bornes et pistolets de distribution (Sprint 1 — US 14 à 16).</div>
         </div>
-        <button class="p" *ngIf="currentUser().role !== 'employe'" (click)="openModal('pump')">+ Ajouter une pompe</button>
+        <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('pump')">+ Ajouter une pompe</button>
       </div>
 
-      <div class="card tw">
+      <div class="card tw" *ngIf="pumps().length > 0">
         <table>
           <thead>
             <tr>
@@ -347,19 +359,21 @@
           </tbody>
         </table>
       </div>
+      <div class="card mu" *ngIf="pumps().length === 0" style="text-align:center;">
+        Aucune pompe trouvée pour cette station.
+      </div>
     </div>
 
-    <!-- PAGE: TANKS / STOCK -->
     <div *ngIf="activePage() === 'tanks' || activePage() === 'stock'">
       <div class="top-bar">
         <div>
           <h2>Cuves &amp; Suivi des Stocks</h2>
           <div class="subtitle">Niveaux de stockage en direct et historique des flux (Sprint 1 &amp; 2).</div>
         </div>
-        <button class="p" *ngIf="currentUser().role !== 'employe'" (click)="openModal('tank')">+ Ajouter une cuve</button>
+        <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('tank')">+ Ajouter une cuve</button>
       </div>
 
-      <div class="tank-grid" style="margin-bottom:24px;">
+      <div class="tank-grid" style="margin-bottom:24px;" *ngIf="tanks().length > 0">
         <div class="tank-card" *ngFor="let t of tanks()" [class.alert-border]="t.estFaible">
           <div class="tank-header">
             <div>
@@ -394,9 +408,11 @@
           </div>
         </div>
       </div>
+      <div class="card mu" *ngIf="tanks().length === 0" style="text-align:center; margin-bottom:24px;">
+        Aucune cuve configurée pour le moment.
+      </div>
 
-      <!-- Mouvements de stock -->
-      <div class="card">
+      <div class="card" *ngIf="movements().length > 0">
         <h3 class="card-title" style="margin-bottom:14px;">📜 Journal des Mouvements de Stock (PostgreSQL)</h3>
         <div class="tw">
           <table>
@@ -435,7 +451,6 @@
       </div>
     </div>
 
-    <!-- PAGE: SUPPLIERS -->
     <div *ngIf="activePage() === 'suppliers'">
       <div class="top-bar">
         <div>
@@ -474,17 +489,16 @@
       </div>
     </div>
 
-    <!-- PAGE: DELIVERIES -->
     <div *ngIf="activePage() === 'deliveries'">
       <div class="top-bar">
         <div>
           <h2>Livraisons &amp; Approvisionnements</h2>
           <div class="subtitle">Réception de carburant et mise à jour automatique des stocks (Sprint 2 — US 24 &amp; 25).</div>
         </div>
-        <button class="p" *ngIf="currentUser().role !== 'employe'" (click)="openModal('delivery')">+ Enregistrer une livraison</button>
+        <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('delivery')">+ Enregistrer une livraison</button>
       </div>
 
-      <div class="card tw">
+      <div class="card tw" *ngIf="deliveries().length > 0">
         <table>
           <thead>
             <tr>
@@ -514,9 +528,11 @@
           </tbody>
         </table>
       </div>
+      <div class="card mu" *ngIf="deliveries().length === 0" style="text-align:center;">
+        Aucune livraison enregistrée pour le moment.
+      </div>
     </div>
 
-    <!-- PAGE: POS (CAISSE VENTE RAPIDE) -->
     <div *ngIf="activePage() === 'pos'">
       <div class="top-bar">
         <div>
@@ -526,7 +542,12 @@
         <button (click)="setPage('sales')">📜 Historique des ventes</button>
       </div>
 
-      <div class="pos-layout">
+      <div class="card" *ngIf="!currentUser().stationId" style="text-align:center; padding:32px;">
+        <h3 class="mu">Aucune station rattachée</h3>
+        <p class="mu">Vous devez être rattaché à une station pour utiliser la caisse et distribuer du carburant.</p>
+      </div>
+
+      <div class="pos-layout" *ngIf="currentUser().stationId">
         <div>
           <div class="card">
             <h3 style="margin-top:0">1. Sélectionnez la pompe en service</h3>
@@ -605,7 +626,6 @@
       </div>
     </div>
 
-    <!-- PAGE: SALES HISTORY -->
     <div *ngIf="activePage() === 'sales'">
       <div class="top-bar">
         <div>
@@ -614,7 +634,7 @@
         </div>
       </div>
 
-      <div class="card tw">
+      <div class="card tw" *ngIf="sales().length > 0">
         <table>
           <thead>
             <tr>
@@ -646,16 +666,18 @@
           </tbody>
         </table>
       </div>
+      <div class="card mu" *ngIf="sales().length === 0" style="text-align:center;">
+        Aucune vente enregistrée pour le moment.
+      </div>
     </div>
 
-    <!-- PAGE: USERS & ROLES -->
     <div *ngIf="activePage() === 'users'">
       <div class="top-bar">
         <div>
-          <h2>Gestion des Utilisateurs &amp; Rôles</h2>
-          <div class="subtitle">Contrôle des accès et affectation aux stations (Sprint 1 — US 5).</div>
+          <h2>{{ currentUser().role === 'gerant' ? 'Personnel de ma station (' + (currentUser().station?.nom || 'Station') + ')' : 'Gestion des Utilisateurs & Rôles' }}</h2>
+          <div class="subtitle">{{ currentUser().role === 'gerant' ? 'Gérer les employés affectés à votre station.' : 'Contrôle des accès et affectation aux stations (Sprint 1 — US 5).' }}</div>
         </div>
-        <button class="p" (click)="openModal('user')">+ Nouvel utilisateur</button>
+        <button class="p" (click)="openModal('user')">{{ currentUser().role === 'gerant' ? '+ Ajouter un employé' : '+ Nouvel utilisateur' }}</button>
       </div>
 
       <div class="card tw">
@@ -681,19 +703,22 @@
               <td>{{ u.email }}</td>
               <td>{{ u.telephone || '—' }}</td>
               <td>
-                <select [disabled]="u.id === currentUser().id" [ngModel]="u.role" (ngModelChange)="updateUserRole(u.id, $event)" style="width:auto; padding:6px 10px;">
+                <span class="badge neutral" *ngIf="currentUser().role === 'gerant'">⛽ Employé</span>
+                <select *ngIf="currentUser().role === 'admin'" [disabled]="u.id === currentUser().id" [ngModel]="u.role" (ngModelChange)="updateUserRole(u.id, $event)" style="width:auto; padding:6px 10px;">
                   <option value="admin">👑 Administrateur</option>
                   <option value="gerant">🏬 Gérant</option>
                   <option value="employe">⛽ Employé</option>
                 </select>
               </td>
               <td>
-                <select [ngModel]="u.stationId" (ngModelChange)="updateUserStation(u.id, $event)" style="width:auto; padding:6px 10px;">
+                <span *ngIf="currentUser().role === 'gerant'">{{ u.station?.nom || currentUser().station?.nom }}</span>
+                <select *ngIf="currentUser().role === 'admin'" [ngModel]="u.stationId" (ngModelChange)="updateUserStation(u.id, $event)" style="width:auto; padding:6px 10px;">
                   <option [ngValue]="null">— Aucune station —</option>
                   <option *ngFor="let st of stations()" [value]="st.id">{{ st.nom }}</option>
                 </select>
               </td>
               <td class="a">
+                <button (click)="openModal('user', u)">Modifier</button>
                 <button class="d" *ngIf="u.id !== currentUser().id" (click)="deleteItem('user', u.id)">Supprimer</button>
                 <span class="mu" *ngIf="u.id === currentUser().id">(Vous)</span>
               </td>
@@ -703,7 +728,6 @@
       </div>
     </div>
 
-    <!-- PAGE: PROFILE -->
     <div *ngIf="activePage() === 'profile'">
       <div class="top-bar">
         <div>
@@ -743,14 +767,10 @@
   </main>
 </div>
 
-<!-- ==========================================================================
-     UNIVERSAL MODAL DIALOG
-     ========================================================================== -->
 <dialog [open]="activeModal() !== null" *ngIf="activeModal()">
   <form (ngSubmit)="saveModal()">
     <h3 style="margin-top:0">{{ modalTitle() }}</h3>
 
-    <!-- STATION FORM -->
     <ng-container *ngIf="activeModal() === 'station'">
       <label>Nom de la station *</label>
       <input [(ngModel)]="modalData.nom" name="nom" required placeholder="Ex: Station Agil Charguia">
@@ -776,7 +796,6 @@
       </select>
     </ng-container>
 
-    <!-- FUEL FORM -->
     <ng-container *ngIf="activeModal() === 'fuel'">
       <label>Nom du carburant *</label>
       <input [(ngModel)]="modalData.libelle" name="libelle" required placeholder="Ex: Sans Plomb 95">
@@ -796,7 +815,6 @@
       <input [(ngModel)]="modalData.couleur" name="couleur" type="color">
     </ng-container>
 
-    <!-- PUMP FORM -->
     <ng-container *ngIf="activeModal() === 'pump'">
       <div *ngIf="currentUser().role === 'admin'">
         <label>Station *</label>
@@ -829,7 +847,6 @@
       <input [(ngModel)]="modalData.description" name="description" placeholder="Ex: Îlot Voitures">
     </ng-container>
 
-    <!-- TANK FORM -->
     <ng-container *ngIf="activeModal() === 'tank'">
       <div *ngIf="currentUser().role === 'admin'">
         <label>Station *</label>
@@ -855,7 +872,6 @@
       </div>
     </ng-container>
 
-    <!-- SUPPLIER FORM -->
     <ng-container *ngIf="activeModal() === 'supplier'">
       <label>Raison Sociale / Nom *</label>
       <input [(ngModel)]="modalData.nom" name="nom" required placeholder="Ex: TotalEnergies">
@@ -875,7 +891,6 @@
       <input [(ngModel)]="modalData.matriculeFiscale" name="matriculeFiscale" placeholder="0001234A/M/000">
     </ng-container>
 
-    <!-- DELIVERY FORM -->
     <ng-container *ngIf="activeModal() === 'delivery'">
       <div class="form-grid">
         <div>
@@ -912,7 +927,6 @@
       <input [(ngModel)]="modalData.notes" name="notes" placeholder="Citerne A1, chauffeur...">
     </ng-container>
 
-    <!-- USER FORM -->
     <ng-container *ngIf="activeModal() === 'user'">
       <div class="form-grid">
         <div>
@@ -928,10 +942,10 @@
       <label>Adresse E-mail *</label>
       <input [(ngModel)]="modalData.email" name="email" type="email" required>
 
-      <label>Mot de passe *</label>
-      <input [(ngModel)]="modalData.motDePasse" name="motDePasse" type="password" required minlength="6" placeholder="••••••••">
+      <label *ngIf="!modalData.id">Mot de passe *</label>
+      <input *ngIf="!modalData.id" [(ngModel)]="modalData.motDePasse" name="motDePasse" type="password" required minlength="6" placeholder="••••••••">
 
-      <div class="form-grid">
+      <div class="form-grid" *ngIf="currentUser().role === 'admin'">
         <div>
           <label>Rôle *</label>
           <select [(ngModel)]="modalData.role" name="role" required>
@@ -959,9 +973,6 @@
   </form>
 </dialog>
 
-<!-- ==========================================================================
-     PRINTABLE RECEIPT MODAL
-     ========================================================================== -->
 <dialog [open]="activeReceipt() !== null" *ngIf="activeReceipt()">
   <div style="text-align:center;">
     <div style="font-size:32px; margin-bottom:8px;">🧾</div>

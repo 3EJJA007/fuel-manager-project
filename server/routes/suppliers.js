@@ -5,7 +5,6 @@ import { authenticate, requireRole } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// US 23: Consulter les fournisseurs
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -19,7 +18,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// US 20: Ajouter un fournisseur
 router.post('/', requireRole('admin'), async (req, res) => {
   try {
     const { nom, telephone, email, adresse, matriculeFiscale } = req.body;
@@ -40,7 +38,6 @@ router.post('/', requireRole('admin'), async (req, res) => {
   }
 });
 
-// US 21: Modifier un fournisseur
 router.put('/:id', requireRole('admin'), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -71,7 +68,6 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   }
 });
 
-// US 22: Supprimer un fournisseur
 router.delete('/:id', requireRole('admin'), async (req, res) => {
   try {
     const id = Number(req.params.id);

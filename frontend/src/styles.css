@@ -136,7 +136,6 @@ button.sm {
   font-size: 13px;
 }
 
-/* Layout */
 .app {
   display: grid;
   grid-template-columns: 270px 1fr;
@@ -448,7 +447,6 @@ input:focus, select:focus, textarea:focus {
 label { display: block; margin: 14px 0 6px; color: var(--mu); font-size: 11px; text-transform: uppercase; letter-spacing: 0.9px; font-weight: 600; }
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 
-/* Auth */
 .authw { display: grid; grid-template-columns: 1.1fr 1fr; min-height: 100vh; }
 .hero {
   background: var(--side);

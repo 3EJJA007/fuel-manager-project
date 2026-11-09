@@ -6,7 +6,6 @@ import { execSync } from 'child_process';
 
 const { Pool, Client } = pg;
 
-// PostgreSQL connection config
 export const dbConfig = {
   host: process.env.PG_HOST || '127.0.0.1',
   port: Number(process.env.PG_PORT) || 5432,
@@ -17,7 +16,6 @@ export const dbConfig = {
 
 export let pool = null;
 
-// Helper to auto-start local PostgreSQL if stopped
 async function tryAutoStartPostgres() {
   const pgCtl = 'C:\\Program Files\\PostgreSQL\\18\\bin\\pg_ctl.exe';
   const dataDir = 'C:\\Program Files\\PostgreSQL\\18\\data';
@@ -25,7 +23,6 @@ async function tryAutoStartPostgres() {
 
   if (fs.existsSync(pgCtl) && fs.existsSync(dataDir)) {
     console.log('[PostgreSQL] Service non détecté. Tentative de démarrage automatique...');
-    // Clean up orphaned postmaster.pid if process is not running
     if (fs.existsSync(pidFile)) {
       try {
         const content = fs.readFileSync(pidFile, 'utf8');
@@ -46,7 +43,6 @@ async function tryAutoStartPostgres() {
 
     try {
       execSync(`"${pgCtl}" start -D "${dataDir}"`, { stdio: 'ignore' });
-      // Wait 2 seconds for socket initialization
       await new Promise(r => setTimeout(r, 2000));
       console.log('[PostgreSQL] Démarrage automatique réussi.');
     } catch (e) {
@@ -55,11 +51,7 @@ async function tryAutoStartPostgres() {
   }
 }
 
-// Ensure database exists and schema is up to date
 export async function initPostgres() {
-  let connected = false;
-
-  // Try connecting or auto-starting up to 2 times
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
       const adminClient = new Client({
@@ -80,7 +72,6 @@ export async function initPostgres() {
         console.log(`[PostgreSQL] Base "${dbConfig.database}" créée avec succès.`);
       }
       await adminClient.end();
-      connected = true;
       break;
     } catch (err) {
       if (err.code === 'ECONNREFUSED' && attempt === 1) {
@@ -91,7 +82,6 @@ export async function initPostgres() {
     }
   }
 
-  // 2. Connect to fuel_manager_db with retry
   pool = new Pool(dbConfig);
   let client = null;
   try {
@@ -108,7 +98,6 @@ export async function initPostgres() {
   console.log(`[PostgreSQL] Connecté à la base "${dbConfig.database}" sur le port ${dbConfig.port}`);
 
   try {
-    // 3. Create tables
     await client.query(`
       CREATE TABLE IF NOT EXISTS stations (
         id SERIAL PRIMARY KEY,
@@ -212,7 +201,6 @@ export async function initPostgres() {
       );
     `);
 
-    // 4. Check if data exists, if not seed
     const usersCountRes = await client.query('SELECT COUNT(*) FROM users');
     if (parseInt(usersCountRes.rows[0].count, 10) === 0) {
       console.log('[PostgreSQL] Amorçage initial des données de démonstration...');
@@ -225,7 +213,6 @@ export async function initPostgres() {
 }
 
 export async function seedPostgres(client) {
-  // 1. Stations
   await client.query(`
     INSERT INTO stations (id, nom, adresse, ville, telephone, etat) VALUES
       (1, 'Station ISET Charguia', 'Rue de l''Aéroport, Charguia II', 'Tunis', '+216 71 800 100', 'Active'),
@@ -235,7 +222,6 @@ export async function seedPostgres(client) {
     SELECT setval('stations_id_seq', (SELECT MAX(id) FROM stations));
   `);
 
-  // 2. Users
   const passAdmin = bcrypt.hashSync('admin123', 10);
   const passGerant = bcrypt.hashSync('gerant123', 10);
   const passEmploye = bcrypt.hashSync('employe123', 10);
@@ -251,7 +237,6 @@ export async function seedPostgres(client) {
     SELECT setval('users_id_seq', (SELECT MAX(id) FROM users));
   `);
 
-  // 3. Fuels
   await client.query(`
     INSERT INTO fuels (id, libelle, prix_unitaire, seuil_minimal, description, couleur) VALUES
       (1, 'Sans Plomb 95', 2.525, 3500, 'Carburant essence super sans plomb indice d''octane 95', '#10b981'),
@@ -261,7 +246,6 @@ export async function seedPostgres(client) {
     SELECT setval('fuels_id_seq', (SELECT MAX(id) FROM fuels));
   `);
 
-  // 4. Pumps
   await client.query(`
     INSERT INTO pumps (id, station_id, numero, carburant_id, etat, description) VALUES
       (1, 1, 1, 1, 'En service', 'Îlot A - Piste Voitures'),
@@ -274,7 +258,6 @@ export async function seedPostgres(client) {
     SELECT setval('pumps_id_seq', (SELECT MAX(id) FROM pumps));
   `);
 
-  // 5. Tanks
   await client.query(`
     INSERT INTO tanks (id, station_id, carburant_id, capacite, niveau_actuel, date_mise_en_service) VALUES
       (1, 1, 1, 20000, 14200, '2024-01-15'),
@@ -286,7 +269,6 @@ export async function seedPostgres(client) {
     SELECT setval('tanks_id_seq', (SELECT MAX(id) FROM tanks));
   `);
 
-  // 6. Suppliers
   await client.query(`
     INSERT INTO suppliers (id, nom, telephone, email, adresse, matricule_fiscale) VALUES
       (1, 'SNDP AGIL Tunisie', '+216 71 700 800', 'contact@agil.com.tn', 'Zone Pétrolière Radès, Tunis', '0001234A/M/000'),
@@ -296,7 +278,6 @@ export async function seedPostgres(client) {
     SELECT setval('suppliers_id_seq', (SELECT MAX(id) FROM suppliers));
   `);
 
-  // 7. Deliveries
   await client.query(`
     INSERT INTO deliveries (id, numero_bon, station_id, cuve_id, carburant_id, fournisseur_id, quantite, prix_achat, notes) VALUES
       (1, 'BL-2026-001', 1, 1, 1, 1, 5000, 2.150, 'Livraison citerne semi-remorque A3'),
@@ -305,7 +286,6 @@ export async function seedPostgres(client) {
     SELECT setval('deliveries_id_seq', (SELECT MAX(id) FROM deliveries));
   `);
 
-  // 8. Sales
   await client.query(`
     INSERT INTO sales (id, numero_recu, station_id, pompe_id, cuve_id, carburant_id, employe_id, quantite, prix_unitaire, montant, mode_paiement) VALUES
       (1, 'REC-1001', 1, 1, 1, 1, 4, 40.0, 2.525, 101.0, 'Espèces'),
@@ -315,7 +295,6 @@ export async function seedPostgres(client) {
     SELECT setval('sales_id_seq', (SELECT MAX(id) FROM sales));
   `);
 
-  // 9. Stock movements
   await client.query(`
     INSERT INTO stock_movements (id, station_id, cuve_id, carburant_id, type, quantite, ancien_niveau, nouveau_niveau, reference_id, auteur) VALUES
       (1, 1, 1, 1, 'ENTREE_LIVRAISON', 5000, 9200, 14200, 'BL-2026-001', 'Gérant Charguia'),
@@ -325,7 +304,6 @@ export async function seedPostgres(client) {
   `);
 }
 
-// Query helper
 export async function query(text, params) {
   return pool.query(text, params);
 }

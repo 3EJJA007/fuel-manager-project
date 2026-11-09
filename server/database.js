@@ -131,7 +131,7 @@ const INITIAL_DATA = {
   tanks: [
     { id: 1, stationId: 1, carburantId: 1, capacite: 20000, niveauActuel: 14200, dateMiseEnService: "2024-01-15" },
     { id: 2, stationId: 1, carburantId: 2, capacite: 25000, niveauActuel: 6800, dateMiseEnService: "2024-01-15" },
-    { id: 3, stationId: 1, carburantId: 3, capacite: 15000, niveauActuel: 2100, dateMiseEnService: "2024-01-15" }, // Under seuil (2500) -> Alert!
+    { id: 3, stationId: 1, carburantId: 3, capacite: 15000, niveauActuel: 2100, dateMiseEnService: "2024-01-15" },
     { id: 4, stationId: 2, carburantId: 1, capacite: 20000, niveauActuel: 16500, dateMiseEnService: "2024-05-10" },
     { id: 5, stationId: 2, carburantId: 2, capacite: 20000, niveauActuel: 11000, dateMiseEnService: "2024-05-10" }
   ],
@@ -275,7 +275,6 @@ class Database {
       } else {
         const raw = fs.readFileSync(DB_PATH, 'utf8');
         this.data = JSON.parse(raw);
-        // Ensure all collections exist
         for (const key of Object.keys(INITIAL_DATA)) {
           if (!this.data[key]) {
             this.data[key] = INITIAL_DATA[key];

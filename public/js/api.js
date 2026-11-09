@@ -1,4 +1,3 @@
-// API Client with JWT Auth & Request Handlers
 const API = (() => {
   const TOKEN_KEY = 'fm_jwt_token';
   const BASE_URL = '/api';
@@ -55,7 +54,6 @@ const API = (() => {
     getToken,
     setToken,
 
-    // Auth (US 1, 2, 3, 4)
     auth: {
       login: (email, motDePasse) => request('/auth/login', { method: 'POST', body: JSON.stringify({ email, motDePasse }) }),
       register: (data) => request('/auth/register', { method: 'POST', body: JSON.stringify(data) }),
@@ -64,7 +62,6 @@ const API = (() => {
       resetDemo: () => request('/auth/reset-demo', { method: 'POST' })
     },
 
-    // Users & Roles (US 5)
     users: {
       list: () => request('/users'),
       create: (data) => request('/users', { method: 'POST', body: JSON.stringify(data) }),
@@ -72,7 +69,6 @@ const API = (() => {
       delete: (id) => request(`/users/${id}`, { method: 'DELETE' })
     },
 
-    // Stations (US 6, 7, 8, 9)
     stations: {
       list: () => request('/stations'),
       get: (id) => request(`/stations/${id}`),
@@ -81,7 +77,6 @@ const API = (() => {
       delete: (id) => request(`/stations/${id}`, { method: 'DELETE' })
     },
 
-    // Fuels (US 10, 11, 12, 13, 30)
     fuels: {
       list: () => request('/fuels'),
       get: (id) => request(`/fuels/${id}`),
@@ -90,7 +85,6 @@ const API = (() => {
       delete: (id) => request(`/fuels/${id}`, { method: 'DELETE' })
     },
 
-    // Pumps (US 14, 15, 16)
     pumps: {
       list: (stationId) => request(`/pumps${stationId ? `?stationId=${stationId}` : ''}`),
       create: (data) => request('/pumps', { method: 'POST', body: JSON.stringify(data) }),
@@ -98,7 +92,6 @@ const API = (() => {
       delete: (id) => request(`/pumps/${id}`, { method: 'DELETE' })
     },
 
-    // Tanks (US 17, 18, 19, 29)
     tanks: {
       list: (stationId) => request(`/tanks${stationId ? `?stationId=${stationId}` : ''}`),
       create: (data) => request('/tanks', { method: 'POST', body: JSON.stringify(data) }),
@@ -106,7 +99,6 @@ const API = (() => {
       delete: (id) => request(`/tanks/${id}`, { method: 'DELETE' })
     },
 
-    // Suppliers (US 20, 21, 22, 23)
     suppliers: {
       list: () => request('/suppliers'),
       get: (id) => request(`/suppliers/${id}`),
@@ -115,13 +107,11 @@ const API = (() => {
       delete: (id) => request(`/suppliers/${id}`, { method: 'DELETE' })
     },
 
-    // Deliveries (US 24, 25)
     deliveries: {
       list: (stationId) => request(`/deliveries${stationId ? `?stationId=${stationId}` : ''}`),
       create: (data) => request('/deliveries', { method: 'POST', body: JSON.stringify(data) })
     },
 
-    // Sales (US 26, 27, 28)
     sales: {
       list: (params = {}) => {
         const query = new URLSearchParams(params).toString();
@@ -130,7 +120,6 @@ const API = (() => {
       create: (data) => request('/sales', { method: 'POST', body: JSON.stringify(data) })
     },
 
-    // Stats & Stock (US 29, 30)
     stats: {
       dashboard: (stationId) => request(`/stats/dashboard${stationId ? `?stationId=${stationId}` : ''}`),
       stockSummary: (stationId) => request(`/stats/stock-summary${stationId ? `?stationId=${stationId}` : ''}`),
@@ -138,4 +127,3 @@ const API = (() => {
     }
   };
 })();
-

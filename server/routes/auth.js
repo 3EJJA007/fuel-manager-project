@@ -19,10 +19,9 @@ function generateToken(user) {
   );
 }
 
-// US 1: S'inscrire
 router.post('/register', async (req, res) => {
   try {
-    const { nom, prenom, email, motDePasse, telephone } = req.body;
+    const { nom, prenom, email, motDePasse, telephone, role, stationId } = req.body;
     if (!nom || !email || !motDePasse) {
       return res.status(400).json({ message: 'Nom, e-mail et mot de passe sont obligatoires.' });
     }
@@ -41,24 +40,41 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ message: 'Cet e-mail est déjà utilisé par un autre compte.' });
     }
 
-    const countRes = await pool.query('SELECT COUNT(*) FROM users');
-    const role = parseInt(countRes.rows[0].count, 10) === 0 ? 'admin' : 'employe';
+    const validRoles = ['admin', 'gerant', 'employe'];
+    let selectedRole = 'employe';
+    if (role && validRoles.includes(role)) {
+      selectedRole = role;
+    }
+
+    let assignedStationId = null;
+    if (stationId && selectedRole !== 'admin') {
+      const stCheck = await pool.query('SELECT id FROM stations WHERE id = $1', [Number(stationId)]);
+      if (stCheck.rows.length > 0) {
+        assignedStationId = Number(stationId);
+      }
+    }
 
     const hashedPassword = await bcrypt.hash(motDePasse, 10);
     const insertRes = await pool.query(
       `INSERT INTO users (nom, prenom, email, mot_de_passe, role, station_id, telephone)
-       VALUES ($1, $2, $3, $4, $5, NULL, $6)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, nom, prenom, email, role, station_id as "stationId", telephone, date_creation as "dateCreation"`,
-      [nom.trim(), (prenom || '').trim(), cleanEmail, hashedPassword, role, telephone || '']
+      [nom.trim(), (prenom || '').trim(), cleanEmail, hashedPassword, selectedRole, assignedStationId, telephone || '']
     );
 
     const newUser = insertRes.rows[0];
     const token = generateToken(newUser);
 
+    let stationInfo = null;
+    if (newUser.stationId) {
+      const st = await pool.query('SELECT id, nom, ville FROM stations WHERE id = $1', [newUser.stationId]);
+      stationInfo = st.rows[0] || null;
+    }
+
     return res.status(201).json({
       message: 'Inscription réussie.',
       token,
-      user: { ...newUser, station: null }
+      user: { ...newUser, station: stationInfo }
     });
   } catch (err) {
     console.error('Register error:', err);
@@ -66,7 +82,6 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// US 2: S'authentifier
 router.post('/login', async (req, res) => {
   try {
     const { email, motDePasse } = req.body;
@@ -117,12 +132,10 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Current user
 router.get('/me', authenticate, (req, res) => {
   res.json({ user: req.user });
 });
 
-// US 4: Modifier profil
 router.put('/profile', authenticate, async (req, res) => {
   try {
     const { nom, prenom, email, motDePasse, telephone } = req.body;
@@ -136,9 +149,7 @@ router.put('/profile', authenticate, async (req, res) => {
       }
     }
 
-    let passwordClause = '';
     const params = [nom.trim(), (prenom || '').trim(), (telephone || '').trim(), currentUserId];
-
     if (email) {
       params.splice(2, 0, email.trim().toLowerCase());
     }
@@ -180,7 +191,6 @@ router.put('/profile', authenticate, async (req, res) => {
   }
 });
 
-// Helper: Reset demo
 router.post('/reset-demo', authenticate, async (req, res) => {
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Action réservée aux administrateurs.' });

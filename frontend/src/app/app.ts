@@ -13,7 +13,6 @@ import { ApiService } from './services/api.service';
 export class App implements OnInit {
   api = inject(ApiService);
 
-  // State signals
   currentUser = signal<any>(null);
   activePage = signal<string>('dashboard');
   theme = signal<string>(localStorage.getItem('fm_theme') || 'dark');
@@ -22,14 +21,14 @@ export class App implements OnInit {
   showToast = signal<boolean>(false);
   authTab = signal<'login' | 'register'>('login');
 
-  // Auth Form
   authNom = '';
   authPrenom = '';
   authEmail = '';
   authPassword = '';
+  authRole = 'employe';
+  authStationId: number | null = null;
   authError = '';
 
-  // Data cache
   dashboardData = signal<any>(null);
   stockSummary = signal<any[]>([]);
   stations = signal<any[]>([]);
@@ -42,20 +41,17 @@ export class App implements OnInit {
   users = signal<any[]>([]);
   movements = signal<any[]>([]);
 
-  // POS Caisse State
   selectedPumpId: number | null = null;
   posQuantity: number = 20;
   posPayment: string = 'Espèces';
   posError: string = '';
   activeReceipt = signal<any>(null);
 
-  // Modal State
   activeModal = signal<string | null>(null);
   modalTitle = signal<string>('');
   modalData: any = {};
   modalError: string = '';
 
-  // Roles map
   rolesMap: Record<string, string> = {
     admin: 'Administrateur',
     gerant: 'Gérant de station',
@@ -67,7 +63,6 @@ export class App implements OnInit {
     this.checkSession();
   }
 
-  // Toast
   notify(msg: string, type: 'info' | 'success' | 'error' = 'info') {
     this.toastMessage.set(msg);
     this.toastType.set(type);
@@ -75,7 +70,6 @@ export class App implements OnInit {
     setTimeout(() => this.showToast.set(false), 3200);
   }
 
-  // Theme
   toggleTheme() {
     const next = this.theme() === 'dark' ? 'light' : 'dark';
     this.theme.set(next);
@@ -87,7 +81,6 @@ export class App implements OnInit {
     document.documentElement.setAttribute('data-theme', t);
   }
 
-  // Check login
   checkSession() {
     const token = this.api.getToken();
     if (!token) return;
@@ -115,7 +108,6 @@ export class App implements OnInit {
     this.loadCurrentPageData();
   }
 
-  // Auth Submit
   submitAuth() {
     this.authError = '';
     if (this.authTab() === 'login') {
@@ -136,7 +128,9 @@ export class App implements OnInit {
         nom: this.authNom.trim(),
         prenom: this.authPrenom.trim(),
         email: this.authEmail.trim(),
-        motDePasse: this.authPassword
+        motDePasse: this.authPassword,
+        role: this.authRole,
+        stationId: this.authRole !== 'admin' ? this.authStationId : null
       };
       this.api.register(data).subscribe({
         next: (res) => {
@@ -166,7 +160,6 @@ export class App implements OnInit {
     this.notify('Déconnexion effectuée.');
   }
 
-  // Load Data according to Page
   loadCurrentPageData() {
     const user = this.currentUser();
     if (!user) return;
@@ -213,7 +206,6 @@ export class App implements OnInit {
     }
   }
 
-  // POS Calculations
   getSelectedPump() {
     return this.pumps().find(p => p.id === this.selectedPumpId);
   }
@@ -256,7 +248,6 @@ export class App implements OnInit {
     window.print();
   }
 
-  // Modals Management
   openModal(type: string, data: any = {}) {
     this.activeModal.set(type);
     this.modalError = '';
@@ -268,7 +259,15 @@ export class App implements OnInit {
     else if (type === 'tank') this.modalTitle.set(data.id ? 'Modifier la Cuve' : 'Nouvelle Cuve');
     else if (type === 'supplier') this.modalTitle.set(data.id ? 'Modifier le Fournisseur' : 'Nouveau Fournisseur');
     else if (type === 'delivery') this.modalTitle.set('Enregistrer une Livraison de Carburant');
-    else if (type === 'user') this.modalTitle.set('Créer un Nouvel Utilisateur');
+    else if (type === 'user') {
+      if (this.currentUser().role === 'gerant') {
+        this.modalData.role = 'employe';
+        this.modalData.stationId = this.currentUser().stationId;
+        this.modalTitle.set(data.id ? 'Modifier l’Employé de ma Station' : 'Ajouter un Employé à ma Station');
+      } else {
+        this.modalTitle.set(data.id ? 'Modifier l’Utilisateur' : 'Créer un Nouvel Utilisateur');
+      }
+    }
   }
 
   closeModal() {
@@ -316,14 +315,14 @@ export class App implements OnInit {
         error: (err) => this.modalError = err.error?.message || 'Erreur.'
       });
     } else if (type === 'user') {
-      this.api.createUser(d).subscribe({
-        next: () => { this.notify('Utilisateur créé avec succès !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
+      const call = d.id ? this.api.updateUser(d.id, d) : this.api.createUser(d);
+      call.subscribe({
+        next: () => { this.notify('Utilisateur enregistré !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
         error: (err) => this.modalError = err.error?.message || 'Erreur.'
       });
     }
   }
 
-  // Deletions
   deleteItem(type: string, id: number) {
     if (!confirm('Supprimer définitivement cet élément ?')) return;
 
@@ -343,7 +342,6 @@ export class App implements OnInit {
     }
   }
 
-  // Users update role/station
   updateUserRole(userId: number, role: string) {
     this.api.updateUser(userId, { role }).subscribe({
       next: () => this.notify('Rôle mis à jour !', 'success'),
@@ -358,7 +356,6 @@ export class App implements OnInit {
     });
   }
 
-  // Profile update
   updateProfile() {
     this.api.updateProfile(this.currentUser()).subscribe({
       next: (res) => { this.currentUser.set(res.user); this.notify('Profil mis à jour !', 'success'); },
@@ -366,7 +363,6 @@ export class App implements OnInit {
     });
   }
 
-  // Reset Demo
   resetDemo() {
     if (!confirm('Réinitialiser la base PostgreSQL aux données de départ ?')) return;
     this.api.resetDemo().subscribe({

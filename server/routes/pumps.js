@@ -5,13 +5,13 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// US 16: Consulter les pompes
 router.get('/', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant' || req.user.role === 'employe') {
-      stationId = req.user.stationId;
-      if (!stationId) return res.status(403).json({ message: 'Vous n’êtes affecté à aucune station.' });
+    const isRestricted = req.user.role === 'gerant' || req.user.role === 'employe';
+    const stationId = isRestricted ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isRestricted && !stationId) {
+      return res.json([]);
     }
 
     let queryText = `
@@ -43,7 +43,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// US 14: Ajouter une pompe
 router.post('/', async (req, res) => {
   try {
     if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
@@ -51,7 +50,7 @@ router.post('/', async (req, res) => {
     }
 
     let stationId = req.user.role === 'gerant' ? req.user.stationId : Number(req.body.stationId);
-    if (!stationId) return res.status(400).json({ message: 'Station non spécifiée.' });
+    if (!stationId) return res.status(400).json({ message: 'Station non spécifiée ou compte non rattaché à une station.' });
 
     const { numero, carburantId, etat, description } = req.body;
     if (!numero || !carburantId) return res.status(400).json({ message: 'Numéro et carburant sont requis.' });
@@ -82,7 +81,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// US 15: Modifier une pompe
 router.put('/:id', async (req, res) => {
   try {
     if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
@@ -128,7 +126,6 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Supprimer une pompe
 router.delete('/:id', async (req, res) => {
   try {
     if (req.user.role !== 'gerant' && req.user.role !== 'admin') {

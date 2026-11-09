@@ -1,12 +1,8 @@
-// FUEL//MANAGER - Frontend Application Controller
-// Sprint 1 & 2 Implementation
-// Designed for ISET Charguia Integration Project (Mme Sonia Gannar)
 
 const $ = (s) => document.querySelector(s);
 const $$ = (s) => document.querySelectorAll(s);
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// State
 const state = {
   user: null,
   page: 'dashboard',
@@ -21,7 +17,6 @@ const state = {
   }
 };
 
-// Role labels & icon mapping
 const ROLES = {
   admin: 'Administrateur',
   gerant: 'Gérant de station',
@@ -43,7 +38,6 @@ const ICONS = {
   profile: '👤'
 };
 
-// Navigation config per role
 const NAV_CONFIG = {
   admin: [
     ['dashboard', 'Tableau de bord'],
@@ -74,7 +68,6 @@ const NAV_CONFIG = {
   ]
 };
 
-// Toast notification helper
 function toast(msg, type = 'info') {
   const t = $('#toast');
   t.textContent = msg;
@@ -84,7 +77,6 @@ function toast(msg, type = 'info') {
   toast.timer = setTimeout(() => { t.hidden = true; }, 3200);
 }
 
-// Theme management
 function initTheme() {
   document.documentElement.setAttribute('data-theme', state.theme);
 }
@@ -95,7 +87,6 @@ function toggleTheme() {
   render();
 }
 
-// Auth flow initialization
 async function init() {
   initTheme();
   const token = API.getToken();
@@ -114,7 +105,6 @@ async function init() {
   render();
 }
 
-// Global render
 async function render() {
   const root = $('#root');
   if (!state.user) {
@@ -184,7 +174,6 @@ function setPage(pageName) {
   render();
 }
 
-// Router for Page views
 async function loadPageView(page) {
   const main = $('#main-content');
   try {
@@ -240,9 +229,7 @@ async function loadPageView(page) {
   }
 }
 
-/* ==========================================================================
-   VIEW 1: AUTHENTICATION (US 1, 2, 3)
-   ========================================================================== */
+
 let authTab = 'login';
 
 function renderAuthScreen() {
@@ -365,9 +352,7 @@ function logout() {
   render();
 }
 
-/* ==========================================================================
-   VIEW 2: DASHBOARD (SYNTHÈSE GLOBALE & STATION)
-   ========================================================================== */
+
 async function renderDashboard() {
   const stationId = state.user.stationId;
   const [dash, stock] = await Promise.all([
@@ -478,9 +463,7 @@ async function resetDemoData() {
   }
 }
 
-/* ==========================================================================
-   VIEW 3: STATIONS (US 6, 7, 8, 9)
-   ========================================================================== */
+
 async function renderStations() {
   const stations = await API.stations.list();
   state.cache.stations = stations;
@@ -615,9 +598,7 @@ async function deleteStation(id) {
   }
 }
 
-/* ==========================================================================
-   VIEW 4: FUELS & PRICING (US 10, 11, 12, 13, 30)
-   ========================================================================== */
+
 async function renderFuels() {
   const fuels = await API.fuels.list();
   state.cache.fuels = fuels;
@@ -755,9 +736,7 @@ async function deleteFuel(id) {
   }
 }
 
-/* ==========================================================================
-   VIEW 5: PUMPS / POMPES (US 14, 15, 16)
-   ========================================================================== */
+
 async function renderPumps() {
   const stationId = state.user.stationId;
   const [pumps, fuels, stations] = await Promise.all([
@@ -921,9 +900,7 @@ async function deletePump(id) {
   }
 }
 
-/* ==========================================================================
-   VIEW 6: TANKS & STOCKS (US 17, 18, 19 & US 29, 30)
-   ========================================================================== */
+
 async function renderTanks() {
   return renderStockView(true);
 }
@@ -1140,9 +1117,7 @@ async function deleteTank(id) {
   }
 }
 
-/* ==========================================================================
-   VIEW 7: SUPPLIERS / FOURNISSEURS (US 20, 21, 22, 23)
-   ========================================================================== */
+
 async function renderSuppliers() {
   const suppliers = await API.suppliers.list();
   state.cache.suppliers = suppliers;
@@ -1271,9 +1246,7 @@ async function deleteSupplier(id) {
   }
 }
 
-/* ==========================================================================
-   VIEW 8: DELIVERIES / LIVRAISONS (US 24, 25)
-   ========================================================================== */
+
 async function renderDeliveries() {
   const stationId = state.user.stationId;
   const [deliveries, suppliers, fuels, tanks, stations] = await Promise.all([
@@ -1453,9 +1426,7 @@ async function handleDeliverySubmit(e) {
   }
 }
 
-/* ==========================================================================
-   VIEW 9: SALES & POS CAISSE (US 26, 27, 28)
-   ========================================================================== */
+
 async function renderPOS() {
   const stationId = state.user.stationId;
   if (!stationId && state.user.role !== 'admin') {
@@ -1472,7 +1443,6 @@ async function renderPOS() {
   state.cache.fuels = fuels;
   state.cache.tanks = tanks;
 
-  // Active pumps only
   const activePumps = pumps.filter(p => p.etat === 'En service');
 
   return `
@@ -1592,7 +1562,6 @@ function initPOSListeners() {
   if (qteInput) {
     qteInput.addEventListener('input', updatePOSCalculation);
   }
-  // Auto select first pump
   const firstPump = $('.fuel-card-btn');
   if (firstPump) {
     const pId = Number(firstPump.getAttribute('data-pump-id'));
@@ -1647,7 +1616,6 @@ async function submitSale() {
     const res = await API.sales.create(data);
     toast(`Vente enregistrée avec succès (${res.sale.montant.toFixed(3)} DT) !`, 'success');
 
-    // Show printable receipt dialog
     openReceiptModal(res.sale);
   } catch (err) {
     errBox.textContent = err.message;
@@ -1686,9 +1654,7 @@ function openReceiptModal(sale) {
   $('#dlg').showModal();
 }
 
-/* ==========================================================================
-   VIEW 10: SALES HISTORY (US 26, 27, 28)
-   ========================================================================== */
+
 async function renderSales() {
   const stationId = state.user.stationId;
   const sales = await API.sales.list(stationId ? { stationId } : {});
@@ -1749,9 +1715,7 @@ async function renderSales() {
   `;
 }
 
-/* ==========================================================================
-   VIEW 11: USERS & ROLES (US 5)
-   ========================================================================== */
+
 async function renderUsers() {
   const [users, stations] = await Promise.all([
     API.users.list(),
@@ -1926,9 +1890,7 @@ async function handleNewUserSubmit(e) {
   }
 }
 
-/* ==========================================================================
-   VIEW 12: PROFILE (US 4)
-   ========================================================================== */
+
 function renderProfile() {
   const u = state.user;
   return `
@@ -2003,6 +1965,5 @@ async function handleProfileSubmit(e) {
   }
 }
 
-// Start app
 window.addEventListener('DOMContentLoaded', init);
 

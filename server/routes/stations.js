@@ -5,7 +5,6 @@ import { authenticate, requireRole } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// US 9: Consulter les informations des stations
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -43,7 +42,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// US 6: Ajouter une station
 router.post('/', requireRole('admin'), async (req, res) => {
   try {
     const { nom, adresse, ville, telephone, etat } = req.body;
@@ -68,7 +66,6 @@ router.post('/', requireRole('admin'), async (req, res) => {
   }
 });
 
-// US 7: Modifier une station
 router.put('/:id', requireRole('admin'), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -101,7 +98,6 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   }
 });
 
-// US 8: Supprimer une station
 router.delete('/:id', requireRole('admin'), async (req, res) => {
   try {
     const id = Number(req.params.id);

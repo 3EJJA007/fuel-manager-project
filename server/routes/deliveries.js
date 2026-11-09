@@ -5,12 +5,13 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// Consulter les livraisons
 router.get('/', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant') {
-      stationId = req.user.stationId;
+    const isGerant = req.user.role === 'gerant';
+    const stationId = isGerant ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isGerant && !stationId) {
+      return res.json([]);
     }
 
     let queryText = `
@@ -42,14 +43,13 @@ router.get('/', async (req, res) => {
   }
 });
 
-// US 24 & 25: Enregistrer une livraison (Transaction PostgreSQL)
 router.post('/', async (req, res) => {
   if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Action réservée aux gérants et administrateurs.' });
   }
 
   let stationId = req.user.role === 'gerant' ? req.user.stationId : Number(req.body.stationId);
-  if (!stationId) return res.status(400).json({ message: 'Station non spécifiée.' });
+  if (!stationId) return res.status(400).json({ message: 'Station non spécifiée ou compte non rattaché.' });
 
   const { numeroBon, fournisseurId, carburantId, cuveId, quantite, prixAchat, date, notes } = req.body;
   if (!numeroBon || !fournisseurId || !carburantId || quantite === undefined) {
@@ -63,14 +63,12 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Check unique numero_bon
     const existing = await client.query('SELECT id FROM deliveries WHERE LOWER(numero_bon) = $1', [numeroBon.trim().toLowerCase()]);
     if (existing.rows.length > 0) {
       await client.query('ROLLBACK');
       return res.status(409).json({ message: `Le bon « ${numeroBon} » existe déjà.` });
     }
 
-    // 2. Find and lock target tank (FOR UPDATE)
     let tankRes;
     if (cuveId) {
       tankRes = await client.query('SELECT * FROM tanks WHERE id = $1 FOR UPDATE', [Number(cuveId)]);
@@ -95,10 +93,8 @@ router.post('/', async (req, res) => {
     const ancienNiveau = Number(tank.niveau_actuel);
     const nouveauNiveau = ancienNiveau + qte;
 
-    // 3. Update tank level
     await client.query('UPDATE tanks SET niveau_actuel = $1 WHERE id = $2', [nouveauNiveau, tank.id]);
 
-    // 4. Insert delivery
     const deliveryDate = date ? new Date(date).toISOString() : new Date().toISOString();
     const insertDel = await client.query(`
       INSERT INTO deliveries (numero_bon, station_id, cuve_id, carburant_id, fournisseur_id, quantite, prix_achat, date, notes)
@@ -106,7 +102,6 @@ router.post('/', async (req, res) => {
       RETURNING id, numero_bon as "numeroBon", quantite, prix_achat as "prixAchat", date
     `, [numeroBon.trim(), stationId, tank.id, Number(carburantId), Number(fournisseurId), qte, Number(prixAchat || 0), deliveryDate, notes ? notes.trim() : '']);
 
-    // 5. Insert stock movement
     await client.query(`
       INSERT INTO stock_movements (date_heure, station_id, cuve_id, carburant_id, type, quantite, ancien_niveau, nouveau_niveau, reference_id, auteur)
       VALUES ($1, $2, $3, $4, 'ENTREE_LIVRAISON', $5, $6, $7, $8, $9)

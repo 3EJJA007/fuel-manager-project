@@ -22,18 +22,15 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Determine Angular build folder vs public static folder
 const angularDistBrowser = path.join(__dirname, 'frontend', 'dist', 'frontend', 'browser');
 const staticDir = fs.existsSync(angularDistBrowser) ? angularDistBrowser : path.join(__dirname, 'public');
 
 app.use(express.static(staticDir));
 
-// API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/stations', stationsRoutes);
@@ -45,7 +42,6 @@ app.use('/api/deliveries', deliveriesRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/stats', statsRoutes);
 
-// Health check endpoint
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'online',
@@ -60,12 +56,10 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// Single Page Application fallback to index.html
 app.use((req, res) => {
   res.sendFile(path.join(staticDir, 'index.html'));
 });
 
-// Global error handler
 app.use((err, req, res, next) => {
   console.error('Unhandled server error:', err);
   res.status(500).json({
@@ -74,7 +68,6 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Start server after connecting to PostgreSQL
 async function startServer() {
   try {
     await initPostgres();

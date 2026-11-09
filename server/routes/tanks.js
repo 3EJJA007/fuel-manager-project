@@ -5,13 +5,13 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// US 19 & 29: Consulter les cuves
 router.get('/', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant' || req.user.role === 'employe') {
-      stationId = req.user.stationId;
-      if (!stationId) return res.status(403).json({ message: 'Vous n’êtes affecté à aucune station.' });
+    const isRestricted = req.user.role === 'gerant' || req.user.role === 'employe';
+    const stationId = isRestricted ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isRestricted && !stationId) {
+      return res.json([]);
     }
 
     let queryText = `
@@ -42,8 +42,8 @@ router.get('/', async (req, res) => {
         niveauActuel: niv,
         pourcentage: pct,
         seuilMinimal: seuil,
-        estFaible: niv <= seuil,
-        estCritique: niv <= (seuil * 0.5),
+        estFaible: cap > 0 && niv <= seuil,
+        estCritique: cap > 0 && niv <= (seuil * 0.5),
         carburant: {
           ...t.carburant,
           prixUnitaire: Number(t.carburant.prixUnitaire),
@@ -58,7 +58,6 @@ router.get('/', async (req, res) => {
   }
 });
 
-// US 17: Ajouter une cuve
 router.post('/', async (req, res) => {
   try {
     if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
@@ -66,7 +65,7 @@ router.post('/', async (req, res) => {
     }
 
     let stationId = req.user.role === 'gerant' ? req.user.stationId : Number(req.body.stationId);
-    if (!stationId) return res.status(400).json({ message: 'Station requise.' });
+    if (!stationId) return res.status(400).json({ message: 'Station non spécifiée ou compte non rattaché.' });
 
     const { carburantId, capacite, niveauActuel, dateMiseEnService } = req.body;
     if (!carburantId || capacite === undefined || capacite === '') {
@@ -100,7 +99,6 @@ router.post('/', async (req, res) => {
   }
 });
 
-// US 18: Modifier une cuve
 router.put('/:id', async (req, res) => {
   try {
     if (req.user.role !== 'gerant' && req.user.role !== 'admin') {
@@ -141,7 +139,6 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// Supprimer une cuve
 router.delete('/:id', async (req, res) => {
   try {
     if (req.user.role !== 'gerant' && req.user.role !== 'admin') {

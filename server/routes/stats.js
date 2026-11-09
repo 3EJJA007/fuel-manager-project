@@ -5,12 +5,13 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// US 29 & 30: Synthèse du stock
 router.get('/stock-summary', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant' || req.user.role === 'employe') {
-      stationId = req.user.stationId;
+    const isRestricted = req.user.role === 'gerant' || req.user.role === 'employe';
+    const stationId = isRestricted ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isRestricted && !stationId) {
+      return res.json([]);
     }
 
     const fuelsRes = await pool.query('SELECT * FROM fuels ORDER BY id ASC');
@@ -38,8 +39,8 @@ router.get('/stock-summary', async (req, res) => {
         totalCapacite: Math.round(totalCapacite),
         totalNiveau: Math.round(totalNiveau),
         pourcentage,
-        estFaible: totalNiveau <= seuil,
-        estCritique: totalNiveau <= (seuil * 0.5),
+        estFaible: totalCapacite > 0 && totalNiveau <= seuil,
+        estCritique: totalCapacite > 0 && totalNiveau <= (seuil * 0.5),
         nbCuves: fuelTanks.length
       };
     });
@@ -50,12 +51,13 @@ router.get('/stock-summary', async (req, res) => {
   }
 });
 
-// Mouvements de stock
 router.get('/movements', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant' || req.user.role === 'employe') {
-      stationId = req.user.stationId;
+    const isRestricted = req.user.role === 'gerant' || req.user.role === 'employe';
+    const stationId = isRestricted ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isRestricted && !stationId) {
+      return res.json([]);
     }
 
     let queryText = `
@@ -86,12 +88,29 @@ router.get('/movements', async (req, res) => {
   }
 });
 
-// Tableau de bord
 router.get('/dashboard', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant' || req.user.role === 'employe') {
-      stationId = req.user.stationId;
+    const isRestricted = req.user.role === 'gerant' || req.user.role === 'employe';
+    const stationId = isRestricted ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isRestricted && !stationId) {
+      return res.json({
+        hasStation: false,
+        stationsCount: 0,
+        activeStations: 0,
+        pumpsCount: 0,
+        pumpsActive: 0,
+        tanksCount: 0,
+        totalStockVolume: 0,
+        totalCapacityVolume: 0,
+        globalStockPercentage: 0,
+        todaysSalesCount: 0,
+        todaysSalesRevenue: 0,
+        todaysLitersSold: 0,
+        totalAllSalesCount: 0,
+        totalAllSalesRevenue: 0,
+        alertsCount: 0
+      });
     }
 
     const stationsCountRes = await pool.query('SELECT COUNT(*) FROM stations');
@@ -126,7 +145,7 @@ router.get('/dashboard', async (req, res) => {
       totalCapacityVolume += cap;
       totalStockVolume += niv;
       const seuil = seuilMap[t.carburant_id] || 3000;
-      if (niv <= seuil) alertsCount++;
+      if (cap > 0 && niv <= seuil) alertsCount++;
     });
 
     const todaysSalesRes = await pool.query(
@@ -142,6 +161,7 @@ router.get('/dashboard', async (req, res) => {
     );
 
     res.json({
+      hasStation: true,
       stationsCount: parseInt(stationsCountRes.rows[0].count, 10),
       activeStations: parseInt(activeStationsRes.rows[0].count, 10),
       pumpsCount: parseInt(pumpsCountRes.rows[0].count, 10),

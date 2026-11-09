@@ -5,7 +5,6 @@ import { authenticate, requireRole } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// US 12: Consulter la liste des types de carburant
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(`
@@ -38,7 +37,6 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// US 10: Ajouter un carburant
 router.post('/', requireRole('admin'), async (req, res) => {
   try {
     const { libelle, prixUnitaire, seuilMinimal, description, couleur } = req.body;
@@ -65,7 +63,6 @@ router.post('/', requireRole('admin'), async (req, res) => {
   }
 });
 
-// US 11, 13 & 30: Modifier carburant, prix unitaire, seuil minimal
 router.put('/:id', requireRole('admin'), async (req, res) => {
   try {
     const id = Number(req.params.id);
@@ -97,7 +94,6 @@ router.put('/:id', requireRole('admin'), async (req, res) => {
   }
 });
 
-// Supprimer un type de carburant
 router.delete('/:id', requireRole('admin'), async (req, res) => {
   try {
     const id = Number(req.params.id);

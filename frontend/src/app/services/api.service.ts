@@ -31,12 +31,10 @@ export class ApiService {
     return headers;
   }
 
-  // Health
   getHealth(): Observable<any> {
     return this.http.get(`${this.baseUrl}/health`);
   }
 
-  // Auth (US 1, 2, 3, 4)
   login(email: string, motDePasse: string): Observable<any> {
     return this.http.post(`${this.baseUrl}/auth/login`, { email, motDePasse });
   }
@@ -57,7 +55,6 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/auth/reset-demo`, {}, { headers: this.getHeaders() });
   }
 
-  // Users & Roles (US 5)
   getUsers(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/users`, { headers: this.getHeaders() });
   }
@@ -74,7 +71,6 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/users/${id}`, { headers: this.getHeaders() });
   }
 
-  // Stations (US 6, 7, 8, 9)
   getStations(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/stations`, { headers: this.getHeaders() });
   }
@@ -91,7 +87,6 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/stations/${id}`, { headers: this.getHeaders() });
   }
 
-  // Fuels (US 10, 11, 12, 13, 30)
   getFuels(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/fuels`, { headers: this.getHeaders() });
   }
@@ -108,7 +103,6 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/fuels/${id}`, { headers: this.getHeaders() });
   }
 
-  // Pumps (US 14, 15, 16)
   getPumps(stationId?: number): Observable<any[]> {
     const url = stationId ? `${this.baseUrl}/pumps?stationId=${stationId}` : `${this.baseUrl}/pumps`;
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
@@ -126,7 +120,6 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/pumps/${id}`, { headers: this.getHeaders() });
   }
 
-  // Tanks (US 17, 18, 19, 29)
   getTanks(stationId?: number): Observable<any[]> {
     const url = stationId ? `${this.baseUrl}/tanks?stationId=${stationId}` : `${this.baseUrl}/tanks`;
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
@@ -144,7 +137,6 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/tanks/${id}`, { headers: this.getHeaders() });
   }
 
-  // Suppliers (US 20, 21, 22, 23)
   getSuppliers(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/suppliers`, { headers: this.getHeaders() });
   }
@@ -161,7 +153,6 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/suppliers/${id}`, { headers: this.getHeaders() });
   }
 
-  // Deliveries (US 24, 25)
   getDeliveries(stationId?: number): Observable<any[]> {
     const url = stationId ? `${this.baseUrl}/deliveries?stationId=${stationId}` : `${this.baseUrl}/deliveries`;
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
@@ -171,7 +162,6 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/deliveries`, data, { headers: this.getHeaders() });
   }
 
-  // Sales (US 26, 27, 28)
   getSales(stationId?: number): Observable<any[]> {
     const url = stationId ? `${this.baseUrl}/sales?stationId=${stationId}` : `${this.baseUrl}/sales`;
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
@@ -181,7 +171,6 @@ export class ApiService {
     return this.http.post(`${this.baseUrl}/sales`, data, { headers: this.getHeaders() });
   }
 
-  // Stats (US 29, 30)
   getDashboard(stationId?: number): Observable<any> {
     const url = stationId ? `${this.baseUrl}/stats/dashboard?stationId=${stationId}` : `${this.baseUrl}/stats/dashboard`;
     return this.http.get<any>(url, { headers: this.getHeaders() });
@@ -197,4 +186,3 @@ export class ApiService {
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
   }
 }
-

@@ -149,7 +149,7 @@ button.sm {
   font-size: 13px;
 }
 
-/* App Layout */
+
 .app {
   display: grid;
   grid-template-columns: 270px 1fr;
@@ -327,7 +327,7 @@ button.sm {
   flex-shrink: 0;
 }
 
-/* Main Content Area */
+
 main {
   padding: 34px clamp(16px, 4vw, 44px);
   max-width: 1280px;
@@ -359,7 +359,7 @@ h2 {
   margin: 4px 0 0;
 }
 
-/* Stats Cards */
+
 .stats {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
@@ -421,7 +421,7 @@ h2 {
   color: var(--mu);
 }
 
-/* Cards & Tables */
+
 .card {
   background: var(--card);
   border: 1px solid var(--bd);
@@ -492,7 +492,7 @@ td.a button {
   margin-left: 6px;
 }
 
-/* Badges & Pills */
+
 .badge {
   display: inline-flex;
   align-items: center;
@@ -525,7 +525,7 @@ td.a button {
   border: 1px solid var(--bd);
 }
 
-/* Tanks & Stock Gauges */
+
 .tank-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
@@ -602,7 +602,7 @@ td.a button {
   font-size: 15px;
 }
 
-/* POS Caisse / Cashier Grid */
+
 .pos-layout {
   display: grid;
   grid-template-columns: 1fr 380px;
@@ -660,7 +660,7 @@ td.a button {
   margin: 6px 0;
 }
 
-/* Forms & Inputs */
+
 input, select, textarea {
   width: 100%;
   padding: 12px 14px;
@@ -693,7 +693,7 @@ label {
   gap: 14px;
 }
 
-/* Auth Screens */
+
 .authw {
   display: grid;
   grid-template-columns: 1.1fr 1fr;
@@ -794,7 +794,7 @@ label {
   border-color: var(--ac);
 }
 
-/* Modals & Dialog */
+
 dialog {
   border: 1px solid var(--bd);
   border-radius: 24px;
@@ -817,7 +817,7 @@ dialog::backdrop {
   margin-top: 24px;
 }
 
-/* Notifications & Error Feedback */
+
 .err {
   color: var(--dg);
   min-height: 20px;
@@ -865,7 +865,7 @@ dialog::backdrop {
   }
 }
 
-/* Theme Switcher */
+
 .theme-btn {
   background: transparent;
   border: 1px solid var(--bd);
@@ -877,7 +877,7 @@ dialog::backdrop {
   place-items: center;
 }
 
-/* Responsive */
+
 @media (max-width: 900px) {
   .app, .authw, .pos-layout {
     grid-template-columns: 1fr;

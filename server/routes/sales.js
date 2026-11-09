@@ -5,12 +5,13 @@ import { authenticate } from '../middleware/auth.js';
 const router = express.Router();
 router.use(authenticate);
 
-// Consulter les ventes
 router.get('/', async (req, res) => {
   try {
-    let stationId = req.query.stationId ? Number(req.query.stationId) : null;
-    if (req.user.role === 'gerant' || req.user.role === 'employe') {
-      stationId = req.user.stationId;
+    const isRestricted = req.user.role === 'gerant' || req.user.role === 'employe';
+    const stationId = isRestricted ? req.user.stationId : (req.query.stationId ? Number(req.query.stationId) : null);
+
+    if (isRestricted && !stationId) {
+      return res.json([]);
     }
 
     let queryText = `
@@ -45,12 +46,11 @@ router.get('/', async (req, res) => {
   }
 });
 
-// US 26, 27, 28: Enregistrer une vente avec transaction atomique
 router.post('/', async (req, res) => {
   const { pompeId, carburantId, quantite, modePaiement } = req.body;
 
-  let stationId = req.user.stationId || Number(req.body.stationId);
-  if (!stationId) return res.status(400).json({ message: 'Station non spécifiée ou non rattachée.' });
+  let stationId = req.user.stationId || (req.user.role === 'admin' ? Number(req.body.stationId) : null);
+  if (!stationId) return res.status(400).json({ message: 'Station non spécifiée ou compte non rattaché à une station.' });
 
   const qte = Number(quantite);
   if (isNaN(qte) || qte <= 0) return res.status(400).json({ message: 'Quantité positive requise.' });
@@ -59,7 +59,6 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    // 1. Resolve pump and fuel
     let pump = null;
     let carbId = carburantId ? Number(carburantId) : null;
 
@@ -84,7 +83,6 @@ router.post('/', async (req, res) => {
     }
     const fuel = fuelRes.rows[0];
 
-    // 2. Lock tank for update
     const tankRes = await client.query(
       'SELECT * FROM tanks WHERE station_id = $1 AND carburant_id = $2 LIMIT 1 FOR UPDATE',
       [stationId, fuel.id]
@@ -96,7 +94,6 @@ router.post('/', async (req, res) => {
     }
     const tank = tankRes.rows[0];
 
-    // 3. Stock availability check (sequence diagram: 409 if insufficient)
     const currentNiv = Number(tank.niveau_actuel);
     if (currentNiv < qte) {
       await client.query('ROLLBACK');
@@ -105,15 +102,12 @@ router.post('/', async (req, res) => {
       });
     }
 
-    // 4. US 27: Montant = Quantité * Prix Unitaire
     const prixUnitaire = Number(fuel.prix_unitaire);
     const montant = Number((qte * prixUnitaire).toFixed(3));
     const nouveauNiveau = Number((currentNiv - qte).toFixed(2));
 
-    // 5. Decrement tank level
     await client.query('UPDATE tanks SET niveau_actuel = $1 WHERE id = $2', [nouveauNiveau, tank.id]);
 
-    // 6. Generate receipt number & insert sale
     const numeroRecu = `REC-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900 + 100)}`;
     const now = new Date().toISOString();
 
@@ -123,7 +117,6 @@ router.post('/', async (req, res) => {
       RETURNING id, numero_recu as "numeroRecu", date_heure as "dateHeure", quantite, prix_unitaire as "prixUnitaire", montant, mode_paiement as "modePaiement"
     `, [numeroRecu, stationId, pump ? pump.id : null, tank.id, fuel.id, req.user.id, qte, prixUnitaire, montant, now, modePaiement || 'Espèces']);
 
-    // 7. Insert stock movement
     await client.query(`
       INSERT INTO stock_movements (date_heure, station_id, cuve_id, carburant_id, type, quantite, ancien_niveau, nouveau_niveau, reference_id, auteur)
       VALUES ($1, $2, $3, $4, 'SORTIE_VENTE', $5, $6, $7, $8, $9)
