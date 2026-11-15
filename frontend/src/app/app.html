@@ -758,8 +758,9 @@
   </main>
 </div>
 
-<dialog [open]="activeModal() !== null" *ngIf="activeModal()">
-  <form (ngSubmit)="saveModal()">
+<div class="modal-overlay" *ngIf="activeModal()" (click)="closeModal()">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <form (ngSubmit)="saveModal()">
     <h3 style="margin-top:0">{{ modalTitle() }}</h3>
 
     <ng-container *ngIf="activeModal() === 'station'">
@@ -962,33 +963,36 @@
       <button type="submit" class="p">Enregistrer</button>
     </div>
   </form>
-</dialog>
+  </div>
+</div>
 
-<dialog [open]="activeReceipt() !== null" *ngIf="activeReceipt()">
-  <div style="text-align:center;">
-    <div style="font-size:32px; margin-bottom:8px;">🧾</div>
-    <h3 style="margin:0">Reçu de Distribution</h3>
-    <p class="mu" style="font-size:12px;">FuelManager — Station-service (PostgreSQL)</p>
+<div class="modal-overlay" *ngIf="activeReceipt()" (click)="activeReceipt.set(null)">
+  <div class="modal-card" (click)="$event.stopPropagation()">
+    <div style="text-align:center;">
+      <div style="font-size:32px; margin-bottom:8px;">🧾</div>
+      <h3 style="margin:0">Reçu de Distribution</h3>
+      <p class="mu" style="font-size:12px;">FuelManager — Station-service (PostgreSQL)</p>
 
-    <div class="receipt-preview" style="text-align:left; margin:16px 0;">
-      <div class="row"><span>Ticket N° :</span><b>{{ activeReceipt().numeroRecu }}</b></div>
-      <div class="row"><span>Date :</span><span>{{ activeReceipt().dateHeure | date:'dd/MM/yyyy HH:mm' }}</span></div>
-      <div class="row"><span>Pompe :</span><b>Pompe #{{ activeReceipt().pompeNumero }}</b></div>
-      <div class="row"><span>Produit :</span><b>{{ activeReceipt().carburant }}</b></div>
-      <div class="row"><span>Prix unitaire :</span><span>{{ activeReceipt().prixUnitaire | number:'1.3-3' }} DT/L</span></div>
-      <div class="row"><span>Quantité :</span><b>{{ activeReceipt().quantite | number:'1.2-2' }} Litres</b></div>
-      <div class="row"><span>Règlement :</span><span>{{ activeReceipt().modePaiement }}</span></div>
-      <div style="border-top:1px dashed var(--bd); margin-top:10px; padding-top:8px;">
-        <div class="row" style="font-size:18px; font-weight:700;">
-          <span>TOTAL :</span>
-          <span style="color:var(--ac);">{{ activeReceipt().montant | number:'1.3-3' }} DT</span>
+      <div class="receipt-preview" style="text-align:left; margin:16px 0;">
+        <div class="row"><span>Ticket N° :</span><b>{{ activeReceipt().numeroRecu }}</b></div>
+        <div class="row"><span>Date :</span><span>{{ activeReceipt().dateHeure | date:'dd/MM/yyyy HH:mm' }}</span></div>
+        <div class="row"><span>Pompe :</span><b>Pompe #{{ activeReceipt().pompeNumero }}</b></div>
+        <div class="row"><span>Produit :</span><b>{{ activeReceipt().carburant }}</b></div>
+        <div class="row"><span>Prix unitaire :</span><span>{{ activeReceipt().prixUnitaire | number:'1.3-3' }} DT/L</span></div>
+        <div class="row"><span>Quantité :</span><b>{{ activeReceipt().quantite | number:'1.2-2' }} Litres</b></div>
+        <div class="row"><span>Règlement :</span><span>{{ activeReceipt().modePaiement }}</span></div>
+        <div style="border-top:1px dashed var(--bd); margin-top:10px; padding-top:8px;">
+          <div class="row" style="font-size:18px; font-weight:700;">
+            <span>TOTAL :</span>
+            <span style="color:var(--ac);">{{ activeReceipt().montant | number:'1.3-3' }} DT</span>
+          </div>
         </div>
       </div>
-    </div>
 
-    <div class="dialog-actions" style="justify-content:center;">
-      <button type="button" (click)="activeReceipt.set(null); setPage('pos');">Nouvelle Vente</button>
-      <button type="button" class="p" (click)="printReceipt()">🖨️ Imprimer Reçu</button>
+      <div class="dialog-actions" style="justify-content:center;">
+        <button type="button" (click)="activeReceipt.set(null); setPage('pos');">Nouvelle Vente</button>
+        <button type="button" class="p" (click)="printReceipt()">🖨️ Imprimer Reçu</button>
+      </div>
     </div>
   </div>
-</dialog>
+</div>
