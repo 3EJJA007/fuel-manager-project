@@ -23,8 +23,8 @@
   <div class="form-container">
     <div class="card" style="margin-bottom:0">
       <div class="tabs">
-        <button [class.p]="authTab() === 'login'" (click)="authTab.set('login')">Connexion</button>
-        <button [class.p]="authTab() === 'register'" (click)="authTab.set('register')">Inscription</button>
+        <button [class.p]="authTab() === 'login'" (click)="switchAuthTab('login')">Connexion</button>
+        <button [class.p]="authTab() === 'register'" (click)="switchAuthTab('register')">Inscription</button>
       </div>
 
       <form (ngSubmit)="submitAuth()">
@@ -45,7 +45,7 @@
         <label>Mot de passe *</label>
         <input [(ngModel)]="authPassword" name="password" type="password" required placeholder="••••••••">
 
-        <div class="err" *ngIf="authError">{{ authError }}</div>
+        <div class="err" *ngIf="authError()">{{ authError() }}</div>
 
         <button type="submit" class="p" style="width: 100%; padding: 13px; margin-top: 14px;">
           {{ authTab() === 'register' ? 'Créer mon compte' : 'Se connecter' }}
@@ -607,7 +607,7 @@
               </div>
             </div>
 
-            <div class="err" *ngIf="posError">{{ posError }}</div>
+            <div class="err" *ngIf="posError()">{{ posError() }}</div>
 
             <button class="p" style="width:100%; padding:15px; font-size:16px; margin-top:16px;" (click)="submitPOSSale()">
               ✅ Valider &amp; Imprimer Reçu
@@ -956,7 +956,7 @@
       </div>
     </ng-container>
 
-    <div class="err" *ngIf="modalError">{{ modalError }}</div>
+    <div class="err" *ngIf="modalError()">{{ modalError() }}</div>
 
     <div class="dialog-actions">
       <button type="button" (click)="closeModal()">Annuler</button>

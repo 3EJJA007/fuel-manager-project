@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
+import { Component, OnInit, inject, signal, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from './services/api.service';
@@ -12,6 +12,7 @@ import { ApiService } from './services/api.service';
 })
 export class App implements OnInit {
   api = inject(ApiService);
+  cdr = inject(ChangeDetectorRef);
 
   currentUser = signal<any>(null);
   activePage = signal<string>('dashboard');
@@ -25,7 +26,7 @@ export class App implements OnInit {
   authPrenom = '';
   authEmail = '';
   authPassword = '';
-  authError = '';
+  authError = signal<string>('');
 
   dashboardData = signal<any>(null);
   stockSummary = signal<any[]>([]);
@@ -42,13 +43,13 @@ export class App implements OnInit {
   selectedPumpId: number | null = null;
   posQuantity: number = 20;
   posPayment: string = 'Espèces';
-  posError: string = '';
+  posError = signal<string>('');
   activeReceipt = signal<any>(null);
 
   activeModal = signal<string | null>(null);
   modalTitle = signal<string>('');
   modalData: any = {};
-  modalError: string = '';
+  modalError = signal<string>('');
 
   rolesMap: Record<string, string> = {
     admin: 'Administrateur',
@@ -106,8 +107,14 @@ export class App implements OnInit {
     this.loadCurrentPageData();
   }
 
+  switchAuthTab(tab: 'login' | 'register') {
+    this.authTab.set(tab);
+    this.authError.set('');
+    this.cdr.markForCheck();
+  }
+
   submitAuth() {
-    this.authError = '';
+    this.authError.set('');
     if (this.authTab() === 'login') {
       this.api.login(this.authEmail.trim(), this.authPassword).subscribe({
         next: (res) => {
@@ -116,9 +123,11 @@ export class App implements OnInit {
           this.notify(`Bienvenue ${res.user.prenom || res.user.nom} !`, 'success');
           this.setDefaultPage(res.user.role);
           this.loadCurrentPageData();
+          this.cdr.markForCheck();
         },
         error: (err) => {
-          this.authError = err.error?.message || 'Identifiants incorrects.';
+          this.authError.set(err.error?.message || 'Identifiants incorrects.');
+          this.cdr.markForCheck();
         }
       });
     } else {
@@ -135,9 +144,11 @@ export class App implements OnInit {
           this.notify('Compte créé avec succès !', 'success');
           this.setDefaultPage(res.user.role);
           this.loadCurrentPageData();
+          this.cdr.markForCheck();
         },
         error: (err) => {
-          this.authError = err.error?.message || 'Erreur lors de l’inscription.';
+          this.authError.set(err.error?.message || 'Erreur lors de l’inscription.');
+          this.cdr.markForCheck();
         }
       });
     }
@@ -146,7 +157,8 @@ export class App implements OnInit {
   fillDemo(email: string, pass: string) {
     this.authEmail = email;
     this.authPassword = pass;
-    this.authError = '';
+    this.authError.set('');
+    this.cdr.markForCheck();
   }
 
   logout() {
@@ -213,13 +225,13 @@ export class App implements OnInit {
   }
 
   submitPOSSale() {
-    this.posError = '';
+    this.posError.set('');
     if (!this.selectedPumpId) {
-      this.posError = 'Veuillez sélectionner une pompe.';
+      this.posError.set('Veuillez sélectionner une pompe.');
       return;
     }
     if (this.posQuantity <= 0) {
-      this.posError = 'Quantité positive requise.';
+      this.posError.set('Quantité positive requise.');
       return;
     }
 
@@ -233,9 +245,11 @@ export class App implements OnInit {
       next: (res) => {
         this.notify(`Vente validée (${res.sale.montant} DT) !`, 'success');
         this.activeReceipt.set(res.sale);
+        this.cdr.markForCheck();
       },
       error: (err) => {
-        this.posError = err.error?.message || 'Erreur lors de la vente.';
+        this.posError.set(err.error?.message || 'Erreur lors de la vente.');
+        this.cdr.markForCheck();
       }
     });
   }
@@ -246,7 +260,7 @@ export class App implements OnInit {
 
   openModal(type: string, data: any = {}) {
     this.activeModal.set(type);
-    this.modalError = '';
+    this.modalError.set('');
     this.modalData = { ...data };
 
     if (type === 'station') this.modalTitle.set(data.id ? 'Modifier la Station' : 'Nouvelle Station');
@@ -264,57 +278,65 @@ export class App implements OnInit {
         this.modalTitle.set(data.id ? 'Modifier l’Utilisateur' : 'Créer un Nouvel Utilisateur');
       }
     }
+    this.cdr.markForCheck();
   }
 
   closeModal() {
     this.activeModal.set(null);
+    this.modalError.set('');
+    this.cdr.markForCheck();
   }
 
   saveModal() {
-    this.modalError = '';
+    this.modalError.set('');
     const type = this.activeModal();
     const d = this.modalData;
+
+    const handleErr = (err: any) => {
+      this.modalError.set(err.error?.message || 'Erreur.');
+      this.cdr.markForCheck();
+    };
 
     if (type === 'station') {
       const call = d.id ? this.api.updateStation(d.id, d) : this.api.createStation(d);
       call.subscribe({
         next: () => { this.notify('Station enregistrée !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     } else if (type === 'fuel') {
       const call = d.id ? this.api.updateFuel(d.id, d) : this.api.createFuel(d);
       call.subscribe({
         next: () => { this.notify('Carburant enregistré !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     } else if (type === 'pump') {
       const call = d.id ? this.api.updatePump(d.id, d) : this.api.createPump(d);
       call.subscribe({
         next: () => { this.notify('Pompe enregistrée !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     } else if (type === 'tank') {
       const call = d.id ? this.api.updateTank(d.id, d) : this.api.createTank(d);
       call.subscribe({
         next: () => { this.notify('Cuve enregistrée !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     } else if (type === 'supplier') {
       const call = d.id ? this.api.updateSupplier(d.id, d) : this.api.createSupplier(d);
       call.subscribe({
         next: () => { this.notify('Fournisseur enregistré !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     } else if (type === 'delivery') {
       this.api.createDelivery(d).subscribe({
         next: (res) => { this.notify(`Livraison enregistrée ! (${res.message})`, 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     } else if (type === 'user') {
       const call = d.id ? this.api.updateUser(d.id, d) : this.api.createUser(d);
       call.subscribe({
         next: () => { this.notify('Utilisateur enregistré !', 'success'); this.closeModal(); this.loadCurrentPageData(); },
-        error: (err) => this.modalError = err.error?.message || 'Erreur.'
+        error: handleErr
       });
     }
   }
