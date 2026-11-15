@@ -7,16 +7,37 @@
     <div class="logo">
       <i>⛽</i>
       <b>FUEL<span>//</span>MANAGER</b>
-      <span class="logo-tag">Angular &amp; PostgreSQL</span>
+      <span class="logo-tag">Enterprise Edition</span>
     </div>
     <h1>Pilotez chaque station, chaque litre.</h1>
-    <p>Application web d'entreprise avec frontend Angular et base de données PostgreSQL en direct.</p>
+    <p>Système de gestion intégrée pour le pilotage opérationnel des réseaux de stations-service : stocks, livraisons, pompes et terminaux de caisse en temps réel.</p>
 
-    <div class="hero-project-box">
-      <b>🎓 Projet d'Intégration — ISET Charguia</b><br>
-      <span>Étudiants : Noussair Huimli, Rayen Bakey, Koussay Ghriss</span><br>
-      <span>Sous la direction de : <b>Mme Sonia Gannar</b></span><br>
-      <span style="font-size:11px; opacity:0.8;">Année Universitaire 2026 – 2027</span>
+    <div class="hero-features">
+      <div class="hero-feat-item">
+        <span class="feat-icon">🏢</span>
+        <div>
+          <b>Supervision Centralisée</b>
+          <small>Gestion multi-stations, suivi des équipements et contrôle des accès.</small>
+        </div>
+      </div>
+      <div class="hero-feat-item">
+        <span class="feat-icon">📊</span>
+        <div>
+          <b>Surveillance des Stocks</b>
+          <small>Jaugeage continu des cuves, seuils de sécurité et alertes de réapprovisionnement.</small>
+        </div>
+      </div>
+      <div class="hero-feat-item">
+        <span class="feat-icon">💳</span>
+        <div>
+          <b>Point de Vente Sécurisé</b>
+          <small>Encaissement instantané, contrôle strict des réserves et émission de tickets de caisse.</small>
+        </div>
+      </div>
+    </div>
+
+    <div class="hero-footer-note">
+      <small>Plateforme certifiée • ISET Charguia • Encadrement : Mme Sonia Gannar</small>
     </div>
   </div>
 
@@ -47,27 +68,10 @@
 
         <div class="err" *ngIf="authError()">{{ authError() }}</div>
 
-        <button type="submit" class="p" style="width: 100%; padding: 13px; margin-top: 14px;">
-          {{ authTab() === 'register' ? 'Créer mon compte' : 'Se connecter' }}
+        <button type="submit" class="p" style="width: 100%; padding: 13px; margin-top: 18px;">
+          {{ authTab() === 'register' ? 'Créer un compte professionnel' : 'Accéder à mon espace' }}
         </button>
       </form>
-
-      <div class="quick-demo-logins">
-        <small style="text-transform: uppercase; font-size: 11px; color: var(--mu); font-weight: 700; letter-spacing: 0.8px;">
-          ⚡ Comptes de test rapides (Soutenance) :
-        </small>
-        <div class="demo-pills">
-          <button class="demo-pill" type="button" (click)="fillDemo('admin@fuelmanager.tn', 'admin123')">
-            👑 Admin
-          </button>
-          <button class="demo-pill" type="button" (click)="fillDemo('gerant.charguia@fuelmanager.tn', 'gerant123')">
-            🏬 Gérant Charguia
-          </button>
-          <button class="demo-pill" type="button" (click)="fillDemo('employe.charguia@fuelmanager.tn', 'employe123')">
-            ⛽ Employé Piste
-          </button>
-        </div>
-      </div>
     </div>
   </div>
 </div>
@@ -78,7 +82,7 @@
       <i>⛽</i>
       <div>
         <b>FUEL<span>//</span>MANAGER</b>
-        <div class="logo-tag">Angular &amp; Postgres</div>
+        <div class="logo-tag">Système Intégré</div>
       </div>
     </div>
 
@@ -154,10 +158,10 @@
       <div class="top-bar">
         <div>
           <h2>Tableau de bord</h2>
-          <div class="subtitle">Vue d'ensemble connectée à la base PostgreSQL (Sprint 1 &amp; 2).</div>
+          <div class="subtitle">Indicateurs clés de performance et synthèse opérationnelle du réseau en temps réel.</div>
         </div>
-        <div *ngIf="currentUser().role === 'admin'">
-          <button (click)="resetDemo()">🔄 Réinitialiser Données Démo</button>
+        <div>
+          <button class="sm" (click)="loadCurrentPageData()">🔄 Actualiser</button>
         </div>
       </div>
 
@@ -224,7 +228,7 @@
       <div class="top-bar">
         <div>
           <h2>Stations-service du réseau</h2>
-          <div class="subtitle">Gestion des implantations géographiques (Sprint 1 — US 6 à 9).</div>
+          <div class="subtitle">Gestion du parc d'implantations géographiques et de leurs statuts opérationnels.</div>
         </div>
         <button class="p" (click)="openModal('station')">+ Ajouter une station</button>
       </div>
@@ -264,7 +268,7 @@
       <div class="top-bar">
         <div>
           <h2>Types de Carburant &amp; Tarifs</h2>
-          <div class="subtitle">Catalogue des produits vendus et prix unitaires (Sprint 1 &amp; 2).</div>
+          <div class="subtitle">Catalogue des carburants distribués, tarification unitaire et seuils d'alerte de stock.</div>
         </div>
         <button class="p" *ngIf="currentUser().role === 'admin'" (click)="openModal('fuel')">+ Ajouter un carburant</button>
       </div>
@@ -307,7 +311,7 @@
       <div class="top-bar">
         <div>
           <h2>Pompes de distribution</h2>
-          <div class="subtitle">Bornes et pistolets de distribution (Sprint 1 — US 14 à 16).</div>
+          <div class="subtitle">Parc de pompes distributrices, affectations aux îlots et statuts de service.</div>
         </div>
         <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('pump')">+ Ajouter une pompe</button>
       </div>
@@ -359,7 +363,7 @@
       <div class="top-bar">
         <div>
           <h2>Cuves &amp; Suivi des Stocks</h2>
-          <div class="subtitle">Niveaux de stockage en direct et historique des flux (Sprint 1 &amp; 2).</div>
+          <div class="subtitle">Capacités des réservoirs, monitoring des volumes disponibles et historique des mouvements.</div>
         </div>
         <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('tank')">+ Ajouter une cuve</button>
       </div>
@@ -446,7 +450,7 @@
       <div class="top-bar">
         <div>
           <h2>Fournisseurs de carburant</h2>
-          <div class="subtitle">Gestion des partenaires pétroliers (Sprint 2 — US 20 à 23).</div>
+          <div class="subtitle">Répertoire des fournisseurs agréés et partenaires logistiques pétroliers.</div>
         </div>
         <button class="p" (click)="openModal('supplier')">+ Ajouter un fournisseur</button>
       </div>
@@ -484,7 +488,7 @@
       <div class="top-bar">
         <div>
           <h2>Livraisons &amp; Approvisionnements</h2>
-          <div class="subtitle">Réception de carburant et mise à jour automatique des stocks (Sprint 2 — US 24 &amp; 25).</div>
+          <div class="subtitle">Enregistrement des bons de livraison et approvisionnement certifié des cuves.</div>
         </div>
         <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('delivery')">+ Enregistrer une livraison</button>
       </div>
@@ -528,7 +532,7 @@
       <div class="top-bar">
         <div>
           <h2>Caisse &amp; Distribution Rapide</h2>
-          <div class="subtitle">Encaissement avec calcul automatique du montant et contrôle de stock (Sprint 2 — US 26 à 28).</div>
+          <div class="subtitle">Terminal de saisie des distributions, facturation instantanée et édition de reçus.</div>
         </div>
         <button (click)="setPage('sales')">📜 Historique des ventes</button>
       </div>
@@ -621,7 +625,7 @@
       <div class="top-bar">
         <div>
           <h2>Historique des Ventes</h2>
-          <div class="subtitle">Traçabilité complète des transactions de carburant (Sprint 2 — US 26 à 28).</div>
+          <div class="subtitle">Journal d'audit exhaustif des distributions et ventilation des modes de règlement.</div>
         </div>
       </div>
 
@@ -666,7 +670,7 @@
       <div class="top-bar">
         <div>
           <h2>{{ currentUser().role === 'gerant' ? 'Personnel de ma station (' + (currentUser().station?.nom || 'Station') + ')' : 'Gestion des Utilisateurs & Rôles' }}</h2>
-          <div class="subtitle">{{ currentUser().role === 'gerant' ? 'Gérer les employés affectés à votre station.' : 'Contrôle des accès et affectation aux stations (Sprint 1 — US 5).' }}</div>
+          <div class="subtitle">{{ currentUser().role === 'gerant' ? 'Gestion du personnel et des opérateurs affectés à votre station.' : 'Administration des comptes utilisateurs, attributions des rôles et affectations aux stations.' }}</div>
         </div>
         <button class="p" (click)="openModal('user')">{{ currentUser().role === 'gerant' ? '+ Ajouter un employé' : '+ Nouvel utilisateur' }}</button>
       </div>
@@ -723,7 +727,7 @@
       <div class="top-bar">
         <div>
           <h2>Mon Profil</h2>
-          <div class="subtitle">Modifier vos coordonnées (Sprint 1 — US 4).</div>
+          <div class="subtitle">Consulter et actualiser vos informations personnelles et paramètres de compte.</div>
         </div>
       </div>
 
@@ -971,7 +975,7 @@
     <div style="text-align:center;">
       <div style="font-size:32px; margin-bottom:8px;">🧾</div>
       <h3 style="margin:0">Reçu de Distribution</h3>
-      <p class="mu" style="font-size:12px;">FuelManager — Station-service (PostgreSQL)</p>
+      <p class="mu" style="font-size:12px;">FUEL//MANAGER — Reçu Officiel de Distribution</p>
 
       <div class="receipt-preview" style="text-align:left; margin:16px 0;">
         <div class="row"><span>Ticket N° :</span><b>{{ activeReceipt().numeroRecu }}</b></div>

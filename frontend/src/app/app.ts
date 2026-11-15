@@ -154,13 +154,6 @@ export class App implements OnInit {
     }
   }
 
-  fillDemo(email: string, pass: string) {
-    this.authEmail = email;
-    this.authPassword = pass;
-    this.authError.set('');
-    this.cdr.markForCheck();
-  }
-
   logout() {
     this.api.setToken(null);
     this.currentUser.set(null);
@@ -378,14 +371,6 @@ export class App implements OnInit {
     this.api.updateProfile(this.currentUser()).subscribe({
       next: (res) => { this.currentUser.set(res.user); this.notify('Profil mis à jour !', 'success'); },
       error: (err) => this.notify(err.error?.message || 'Erreur de mise à jour.', 'error')
-    });
-  }
-
-  resetDemo() {
-    if (!confirm('Réinitialiser la base PostgreSQL aux données de départ ?')) return;
-    this.api.resetDemo().subscribe({
-      next: () => { this.notify('Données PostgreSQL réinitialisées !', 'success'); this.loadCurrentPageData(); },
-      error: (err) => this.notify(err.error?.message || 'Erreur.', 'error')
     });
   }
 }
