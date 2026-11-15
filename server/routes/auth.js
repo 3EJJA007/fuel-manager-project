@@ -40,19 +40,8 @@ router.post('/register', async (req, res) => {
       return res.status(409).json({ message: 'Cet e-mail est déjà utilisé par un autre compte.' });
     }
 
-    const validRoles = ['admin', 'gerant', 'employe'];
-    let selectedRole = 'employe';
-    if (role && validRoles.includes(role)) {
-      selectedRole = role;
-    }
-
-    let assignedStationId = null;
-    if (stationId && selectedRole !== 'admin') {
-      const stCheck = await pool.query('SELECT id FROM stations WHERE id = $1', [Number(stationId)]);
-      if (stCheck.rows.length > 0) {
-        assignedStationId = Number(stationId);
-      }
-    }
+    const selectedRole = 'employe';
+    const assignedStationId = null;
 
     const hashedPassword = await bcrypt.hash(motDePasse, 10);
     const insertRes = await pool.query(

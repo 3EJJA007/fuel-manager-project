@@ -25,8 +25,6 @@ export class App implements OnInit {
   authPrenom = '';
   authEmail = '';
   authPassword = '';
-  authRole = 'employe';
-  authStationId: number | null = null;
   authError = '';
 
   dashboardData = signal<any>(null);
@@ -128,9 +126,7 @@ export class App implements OnInit {
         nom: this.authNom.trim(),
         prenom: this.authPrenom.trim(),
         email: this.authEmail.trim(),
-        motDePasse: this.authPassword,
-        role: this.authRole,
-        stationId: this.authRole !== 'admin' ? this.authStationId : null
+        motDePasse: this.authPassword
       };
       this.api.register(data).subscribe({
         next: (res) => {

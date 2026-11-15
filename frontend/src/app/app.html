@@ -39,15 +39,6 @@
           </div>
         </div>
 
-        <div *ngIf="authTab() === 'register'">
-          <label>Rôle souhaité *</label>
-          <select [(ngModel)]="authRole" name="role" required>
-            <option value="employe">⛽ Employé</option>
-            <option value="gerant">🏬 Gérant de station</option>
-            <option value="admin">👑 Administrateur</option>
-          </select>
-        </div>
-
         <label>Adresse E-mail *</label>
         <input [(ngModel)]="authEmail" name="email" type="email" required placeholder="nom@fuelmanager.tn">
 
