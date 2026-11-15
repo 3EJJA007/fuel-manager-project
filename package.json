@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "build": "cd frontend && ng build",
+    "build": "cd frontend && npx ng build",
+    "install:all": "npm install && npm --prefix frontend install",
     "dev:backend": "node --watch server.js",
     "dev:angular": "cd frontend && ng serve --port 4200",
     "seed": "node -e \"import { initPostgres, seedPostgres, pool } from './server/db.js'; await initPostgres(); const client = await pool.connect(); await seedPostgres(client); client.release(); console.log('PostgreSQL reseeded!'); process.exit(0);\""

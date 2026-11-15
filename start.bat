@@ -21,6 +21,10 @@ if not exist node_modules (
 )
 
 if not exist frontend\dist\frontend\browser (
+    if not exist frontend\node_modules (
+        echo [INFO] Installation des modules Angular...
+        call npm --prefix frontend install
+    )
     echo [INFO] Compilation initiale d'Angular en cours...
     call npm run build
 )
