@@ -27,10 +27,37 @@ router.get('/', async (req, res) => {
       LEFT JOIN users u ON s.employe_id = u.id
     `;
     const params = [];
+    const conditions = [];
+
     if (stationId) {
-      queryText += ' WHERE s.station_id = $1';
       params.push(stationId);
+      conditions.push(`s.station_id = $${params.length}`);
     }
+
+    if (req.query.carburantId) {
+      params.push(Number(req.query.carburantId));
+      conditions.push(`s.carburant_id = $${params.length}`);
+    }
+
+    if (req.query.employeId) {
+      params.push(Number(req.query.employeId));
+      conditions.push(`s.employe_id = $${params.length}`);
+    }
+
+    if (req.query.dateDebut) {
+      params.push(req.query.dateDebut);
+      conditions.push(`DATE(s.date_heure) >= $${params.length}`);
+    }
+
+    if (req.query.dateFin) {
+      params.push(req.query.dateFin);
+      conditions.push(`DATE(s.date_heure) <= $${params.length}`);
+    }
+
+    if (conditions.length > 0) {
+      queryText += ' WHERE ' + conditions.join(' AND ');
+    }
+
     queryText += ' ORDER BY s.date_heure DESC, s.id DESC';
 
     const result = await pool.query(queryText, params);
@@ -122,6 +149,39 @@ router.post('/', async (req, res) => {
       VALUES ($1, $2, $3, $4, 'SORTIE_VENTE', $5, $6, $7, $8, $9)
     `, [now, stationId, tank.id, fuel.id, qte, currentNiv, nouveauNiveau, numeroRecu, `${req.user.prenom || ''} ${req.user.nom}`.trim()]);
 
+    const seuil = Number(fuel.seuil_minimal || 3000);
+    const isUnderSeuil = nouveauNiveau <= seuil;
+
+    if (isUnderSeuil) {
+      const existingAlert = await client.query(
+        'SELECT id FROM alerts WHERE cuve_id = $1 AND traitee = false',
+        [tank.id]
+      );
+      let alertId;
+      if (existingAlert.rows.length === 0) {
+        const alRes = await client.query(`
+          INSERT INTO alerts (station_id, cuve_id, carburant_id, quantite_restante, seuil_minimal, traitee)
+          VALUES ($1, $2, $3, $4, $5, false)
+          RETURNING id
+        `, [stationId, tank.id, fuel.id, nouveauNiveau, seuil]);
+        alertId = alRes.rows[0].id;
+      } else {
+        alertId = existingAlert.rows[0].id;
+        await client.query('UPDATE alerts SET quantite_restante = $1, date_heure = CURRENT_TIMESTAMP WHERE id = $2', [nouveauNiveau, alertId]);
+      }
+
+      const notifyUsers = await client.query(`
+        SELECT id FROM users WHERE (role = 'gerant' AND station_id = $1) OR role = 'admin'
+      `, [stationId]);
+      const alerteMsg = `⚠️ Stock Faible : La cuve #${tank.id} (${fuel.libelle}) est à ${nouveauNiveau} L (seuil : ${seuil} L).`;
+      for (const u of notifyUsers.rows) {
+        await client.query(`
+          INSERT INTO notifications (user_id, message, type, alerte_id)
+          VALUES ($1, $2, 'alerte_stock', $3)
+        `, [u.id, alerteMsg, alertId]);
+      }
+    }
+
     await client.query('COMMIT');
 
     res.status(201).json({
@@ -133,7 +193,7 @@ router.post('/', async (req, res) => {
         quantite: qte,
         prixUnitaire,
         montant,
-        alerteFaible: nouveauNiveau <= Number(fuel.seuil_minimal || 3000)
+        alerteFaible: isUnderSeuil
       },
       stockRestant: nouveauNiveau
     });

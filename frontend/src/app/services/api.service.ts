@@ -51,10 +51,6 @@ export class ApiService {
     return this.http.put(`${this.baseUrl}/auth/profile`, data, { headers: this.getHeaders() });
   }
 
-  resetDemo(): Observable<any> {
-    return this.http.post(`${this.baseUrl}/auth/reset-demo`, {}, { headers: this.getHeaders() });
-  }
-
   getUsers(): Observable<any[]> {
     return this.http.get<any[]>(`${this.baseUrl}/users`, { headers: this.getHeaders() });
   }
@@ -153,18 +149,30 @@ export class ApiService {
     return this.http.delete(`${this.baseUrl}/suppliers/${id}`, { headers: this.getHeaders() });
   }
 
-  getDeliveries(stationId?: number): Observable<any[]> {
-    const url = stationId ? `${this.baseUrl}/deliveries?stationId=${stationId}` : `${this.baseUrl}/deliveries`;
-    return this.http.get<any[]>(url, { headers: this.getHeaders() });
+  getDeliveries(filters: any = {}): Observable<any[]> {
+    const params = new URLSearchParams();
+    if (filters.stationId) params.append('stationId', filters.stationId);
+    if (filters.fournisseurId) params.append('fournisseurId', filters.fournisseurId);
+    if (filters.carburantId) params.append('carburantId', filters.carburantId);
+    if (filters.dateDebut) params.append('dateDebut', filters.dateDebut);
+    if (filters.dateFin) params.append('dateFin', filters.dateFin);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.http.get<any[]>(`${this.baseUrl}/deliveries${qs}`, { headers: this.getHeaders() });
   }
 
   createDelivery(data: any): Observable<any> {
     return this.http.post(`${this.baseUrl}/deliveries`, data, { headers: this.getHeaders() });
   }
 
-  getSales(stationId?: number): Observable<any[]> {
-    const url = stationId ? `${this.baseUrl}/sales?stationId=${stationId}` : `${this.baseUrl}/sales`;
-    return this.http.get<any[]>(url, { headers: this.getHeaders() });
+  getSales(filters: any = {}): Observable<any[]> {
+    const params = new URLSearchParams();
+    if (filters.stationId) params.append('stationId', filters.stationId);
+    if (filters.carburantId) params.append('carburantId', filters.carburantId);
+    if (filters.employeId) params.append('employeId', filters.employeId);
+    if (filters.dateDebut) params.append('dateDebut', filters.dateDebut);
+    if (filters.dateFin) params.append('dateFin', filters.dateFin);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.http.get<any[]>(`${this.baseUrl}/sales${qs}`, { headers: this.getHeaders() });
   }
 
   createSale(data: any): Observable<any> {
@@ -181,8 +189,67 @@ export class ApiService {
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
   }
 
-  getMovements(stationId?: number): Observable<any[]> {
-    const url = stationId ? `${this.baseUrl}/stats/movements?stationId=${stationId}` : `${this.baseUrl}/stats/movements`;
+  getMovements(filters: any = {}): Observable<any[]> {
+    const params = new URLSearchParams();
+    if (filters.stationId) params.append('stationId', filters.stationId);
+    if (filters.type) params.append('type', filters.type);
+    if (filters.carburantId) params.append('carburantId', filters.carburantId);
+    if (filters.dateDebut) params.append('dateDebut', filters.dateDebut);
+    if (filters.dateFin) params.append('dateFin', filters.dateFin);
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.http.get<any[]>(`${this.baseUrl}/stats/movements${qs}`, { headers: this.getHeaders() });
+  }
+
+  getDailySales(days: number = 7, stationId?: number): Observable<any[]> {
+    let url = `${this.baseUrl}/stats/daily-sales?days=${days}`;
+    if (stationId) url += `&stationId=${stationId}`;
     return this.http.get<any[]>(url, { headers: this.getHeaders() });
+  }
+
+  getSalesByFuel(stationId?: number): Observable<any[]> {
+    const url = stationId ? `${this.baseUrl}/stats/sales-by-fuel?stationId=${stationId}` : `${this.baseUrl}/stats/sales-by-fuel`;
+    return this.http.get<any[]>(url, { headers: this.getHeaders() });
+  }
+
+  getAlerts(stationId?: number, traitee?: boolean): Observable<any[]> {
+    let url = `${this.baseUrl}/alerts`;
+    const params = new URLSearchParams();
+    if (stationId) params.append('stationId', stationId.toString());
+    if (traitee !== undefined) params.append('traitee', traitee.toString());
+    const qs = params.toString() ? `?${params.toString()}` : '';
+    return this.http.get<any[]>(`${url}${qs}`, { headers: this.getHeaders() });
+  }
+
+  treatAlert(id: number): Observable<any> {
+    return this.http.put(`${this.baseUrl}/alerts/${id}/traiter`, {}, { headers: this.getHeaders() });
+  }
+
+  getLowStockStations(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/alerts/low-stock-stations`, { headers: this.getHeaders() });
+  }
+
+  getNotifications(): Observable<any[]> {
+    return this.http.get<any[]>(`${this.baseUrl}/notifications`, { headers: this.getHeaders() });
+  }
+
+  markNotificationRead(id: number): Observable<any> {
+    return this.http.put(`${this.baseUrl}/notifications/${id}/read`, {}, { headers: this.getHeaders() });
+  }
+
+  markAllNotificationsRead(): Observable<any> {
+    return this.http.put(`${this.baseUrl}/notifications/read-all`, {}, { headers: this.getHeaders() });
+  }
+
+  getReports(stationId?: number): Observable<any[]> {
+    const url = stationId ? `${this.baseUrl}/reports?stationId=${stationId}` : `${this.baseUrl}/reports`;
+    return this.http.get<any[]>(url, { headers: this.getHeaders() });
+  }
+
+  generateReport(data: any): Observable<any> {
+    return this.http.post(`${this.baseUrl}/reports/generate`, data, { headers: this.getHeaders() });
+  }
+
+  getReportExportUrl(id: number, format: string = 'CSV'): string {
+    return `${this.baseUrl}/reports/${id}/export?format=${format}`;
   }
 }

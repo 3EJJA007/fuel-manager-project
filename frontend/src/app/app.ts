@@ -1,4 +1,4 @@
-import { Component, OnInit, inject, signal, ChangeDetectorRef } from '@angular/core';
+import { Component, OnInit, inject, signal, computed, ChangeDetectorRef } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ApiService } from './services/api.service';
@@ -40,6 +40,40 @@ export class App implements OnInit {
   users = signal<any[]>([]);
   movements = signal<any[]>([]);
 
+  alerts = signal<any[]>([]);
+  notifications = signal<any[]>([]);
+  showNotificationsPanel = signal<boolean>(false);
+  lowStockStations = signal<any[]>([]);
+  dailySalesStats = signal<any[]>([]);
+  salesByFuel = signal<any[]>([]);
+  reportsList = signal<any[]>([]);
+  activeGeneratedReport = signal<any>(null);
+
+  salesFilterCarburant = '';
+  salesFilterEmploye = '';
+  salesFilterDateDebut = '';
+  salesFilterDateFin = '';
+
+  delivFilterStation = '';
+  delivFilterFournisseur = '';
+  delivFilterCarburant = '';
+  delivFilterDateDebut = '';
+  delivFilterDateFin = '';
+
+  movFilterStation = '';
+  movFilterType = '';
+  movFilterCarburant = '';
+  movFilterDateDebut = '';
+  movFilterDateFin = '';
+
+  reportType = 'Rapport Synthétique Mensuel';
+  reportStationId = '';
+  reportDateDebut = '';
+  reportDateFin = '';
+  reportFormat = 'PDF';
+
+  userFilterStation = '';
+
   selectedPumpId: number | null = null;
   posQuantity: number = 20;
   posPayment: string = 'Espèces';
@@ -56,6 +90,32 @@ export class App implements OnInit {
     gerant: 'Gérant de station',
     employe: 'Employé'
   };
+
+  unreadNotificationsCount = computed(() => {
+    return this.notifications().filter(n => !n.lue).length;
+  });
+
+  filteredSalesTotals = computed(() => {
+    const list = this.sales();
+    const volume = list.reduce((sum, s) => sum + Number(s.quantite || 0), 0);
+    const recette = list.reduce((sum, s) => sum + Number(s.montant || 0), 0);
+    return {
+      count: list.length,
+      volume: Number(volume.toFixed(1)),
+      recette: Number(recette.toFixed(3))
+    };
+  });
+
+  filteredDeliveriesTotals = computed(() => {
+    const list = this.deliveries();
+    const volume = list.reduce((sum, d) => sum + Number(d.quantite || 0), 0);
+    const depense = list.reduce((sum, d) => sum + (Number(d.quantite || 0) * Number(d.prixAchat || 0)), 0);
+    return {
+      count: list.length,
+      volume: Number(volume.toFixed(1)),
+      depense: Number(depense.toFixed(3))
+    };
+  });
 
   ngOnInit() {
     this.applyTheme(this.theme());
@@ -88,6 +148,7 @@ export class App implements OnInit {
       next: (res) => {
         this.currentUser.set(res.user);
         this.setDefaultPage(res.user.role);
+        this.loadNotifications();
         this.loadCurrentPageData();
       },
       error: () => {
@@ -122,6 +183,7 @@ export class App implements OnInit {
           this.currentUser.set(res.user);
           this.notify(`Bienvenue ${res.user.prenom || res.user.nom} !`, 'success');
           this.setDefaultPage(res.user.role);
+          this.loadNotifications();
           this.loadCurrentPageData();
           this.cdr.markForCheck();
         },
@@ -143,6 +205,7 @@ export class App implements OnInit {
           this.currentUser.set(res.user);
           this.notify('Compte créé avec succès !', 'success');
           this.setDefaultPage(res.user.role);
+          this.loadNotifications();
           this.loadCurrentPageData();
           this.cdr.markForCheck();
         },
@@ -161,15 +224,72 @@ export class App implements OnInit {
     this.notify('Déconnexion effectuée.');
   }
 
+  loadNotifications() {
+    if (!this.currentUser()) return;
+    this.api.getNotifications().subscribe({
+      next: (n) => {
+        this.notifications.set(n);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  toggleNotifications() {
+    this.showNotificationsPanel.update(v => !v);
+  }
+
+  markNotificationRead(id: number) {
+    this.api.markNotificationRead(id).subscribe({
+      next: () => this.loadNotifications()
+    });
+  }
+
+  markAllNotificationsRead() {
+    this.api.markAllNotificationsRead().subscribe({
+      next: () => {
+        this.notify('Notifications marquées comme lues.', 'success');
+        this.loadNotifications();
+      }
+    });
+  }
+
+  loadAlerts() {
+    const sId = this.currentUser()?.role === 'gerant' ? this.currentUser().stationId : undefined;
+    this.api.getAlerts(sId).subscribe({
+      next: (a) => {
+        this.alerts.set(a);
+        this.cdr.markForCheck();
+      }
+    });
+  }
+
+  treatAlert(id: number) {
+    this.api.treatAlert(id).subscribe({
+      next: () => {
+        this.notify('Alerte de stock traitée avec succès !', 'success');
+        this.loadAlerts();
+        this.loadNotifications();
+        this.loadCurrentPageData();
+      },
+      error: (err) => this.notify(err.error?.message || 'Erreur.', 'error')
+    });
+  }
+
   loadCurrentPageData() {
     const user = this.currentUser();
     if (!user) return;
     const sId = user.stationId || undefined;
+    this.loadNotifications();
 
     const page = this.activePage();
     if (page === 'dashboard') {
       this.api.getDashboard(sId).subscribe(d => this.dashboardData.set(d));
       this.api.getStockSummary(sId).subscribe(s => this.stockSummary.set(s));
+      this.api.getDailySales(7, sId).subscribe(ds => this.dailySalesStats.set(ds));
+      this.api.getSalesByFuel(sId).subscribe(bf => this.salesByFuel.set(bf));
+      this.api.getLowStockStations().subscribe(ls => this.lowStockStations.set(ls));
+      this.api.getFuels().subscribe(f => this.fuels.set(f));
+      this.loadAlerts();
     } else if (page === 'stations') {
       this.api.getStations().subscribe(s => this.stations.set(s));
     } else if (page === 'fuels') {
@@ -182,17 +302,19 @@ export class App implements OnInit {
       this.api.getTanks(sId).subscribe(t => this.tanks.set(t));
       this.api.getFuels().subscribe(f => this.fuels.set(f));
       this.api.getStations().subscribe(s => this.stations.set(s));
-      this.api.getMovements(sId).subscribe(m => this.movements.set(m));
+      this.applyMovementsFilters();
     } else if (page === 'suppliers') {
       this.api.getSuppliers().subscribe(s => this.suppliers.set(s));
     } else if (page === 'deliveries') {
-      this.api.getDeliveries(sId).subscribe(d => this.deliveries.set(d));
+      this.applyDeliveriesFilters();
       this.api.getSuppliers().subscribe(s => this.suppliers.set(s));
       this.api.getTanks(sId).subscribe(t => this.tanks.set(t));
       this.api.getFuels().subscribe(f => this.fuels.set(f));
       this.api.getStations().subscribe(s => this.stations.set(s));
     } else if (page === 'sales') {
-      this.api.getSales(sId).subscribe(s => this.sales.set(s));
+      this.applySalesFilters();
+      this.api.getFuels().subscribe(f => this.fuels.set(f));
+      this.api.getUsers().subscribe(u => this.users.set(u));
     } else if (page === 'pos') {
       this.api.getPumps(sId).subscribe(p => {
         const active = p.filter((x: any) => x.etat === 'En service');
@@ -204,7 +326,128 @@ export class App implements OnInit {
     } else if (page === 'users') {
       this.api.getUsers().subscribe(u => this.users.set(u));
       this.api.getStations().subscribe(s => this.stations.set(s));
+    } else if (page === 'alerts') {
+      this.loadAlerts();
+      this.api.getLowStockStations().subscribe(ls => this.lowStockStations.set(ls));
+    } else if (page === 'reports') {
+      this.api.getReports(sId).subscribe(r => this.reportsList.set(r));
+      this.api.getStations().subscribe(s => this.stations.set(s));
+    } else if (page === 'movements') {
+      this.applyMovementsFilters();
+      this.api.getFuels().subscribe(f => this.fuels.set(f));
+      this.api.getStations().subscribe(s => this.stations.set(s));
     }
+  }
+
+  applySalesFilters() {
+    const sId = this.currentUser()?.role === 'admin' ? undefined : this.currentUser()?.stationId;
+    this.api.getSales({
+      stationId: sId,
+      carburantId: this.salesFilterCarburant,
+      employeId: this.salesFilterEmploye,
+      dateDebut: this.salesFilterDateDebut,
+      dateFin: this.salesFilterDateFin
+    }).subscribe(s => {
+      this.sales.set(s);
+      this.cdr.markForCheck();
+    });
+  }
+
+  resetSalesFilters() {
+    this.salesFilterCarburant = '';
+    this.salesFilterEmploye = '';
+    this.salesFilterDateDebut = '';
+    this.salesFilterDateFin = '';
+    this.applySalesFilters();
+  }
+
+  applyDeliveriesFilters() {
+    const sId = this.currentUser()?.role === 'admin' ? (this.delivFilterStation || undefined) : this.currentUser()?.stationId;
+    this.api.getDeliveries({
+      stationId: sId,
+      fournisseurId: this.delivFilterFournisseur,
+      carburantId: this.delivFilterCarburant,
+      dateDebut: this.delivFilterDateDebut,
+      dateFin: this.delivFilterDateFin
+    }).subscribe(d => {
+      this.deliveries.set(d);
+      this.cdr.markForCheck();
+    });
+  }
+
+  resetDeliveriesFilters() {
+    this.delivFilterStation = '';
+    this.delivFilterFournisseur = '';
+    this.delivFilterCarburant = '';
+    this.delivFilterDateDebut = '';
+    this.delivFilterDateFin = '';
+    this.applyDeliveriesFilters();
+  }
+
+  applyMovementsFilters() {
+    const sId = this.currentUser()?.role === 'admin' ? (this.movFilterStation || undefined) : this.currentUser()?.stationId;
+    this.api.getMovements({
+      stationId: sId,
+      type: this.movFilterType,
+      carburantId: this.movFilterCarburant,
+      dateDebut: this.movFilterDateDebut,
+      dateFin: this.movFilterDateFin
+    }).subscribe(m => {
+      this.movements.set(m);
+      this.cdr.markForCheck();
+    });
+  }
+
+  resetMovementsFilters() {
+    this.movFilterStation = '';
+    this.movFilterType = '';
+    this.movFilterCarburant = '';
+    this.movFilterDateDebut = '';
+    this.movFilterDateFin = '';
+    this.applyMovementsFilters();
+  }
+
+  generateReport() {
+    const sId = this.currentUser()?.role === 'admin' ? (this.reportStationId ? Number(this.reportStationId) : null) : this.currentUser()?.stationId;
+    const payload = {
+      type: this.reportType,
+      stationId: sId,
+      dateDebut: this.reportDateDebut,
+      dateFin: this.reportDateFin,
+      format: this.reportFormat
+    };
+
+    this.api.generateReport(payload).subscribe({
+      next: (rep) => {
+        this.activeGeneratedReport.set(rep);
+        this.notify('Rapport d’activité généré avec succès !', 'success');
+        this.api.getReports(sId || undefined).subscribe(r => this.reportsList.set(r));
+        this.cdr.markForCheck();
+      },
+      error: (err) => this.notify(err.error?.message || 'Erreur lors de la génération.', 'error')
+    });
+  }
+
+  printReport() {
+    window.print();
+  }
+
+  downloadCsv(reportId: number) {
+    const url = this.api.getReportExportUrl(reportId, 'CSV');
+    window.open(url, '_blank');
+  }
+
+  getFilteredUsers(): any[] {
+    const list = this.users();
+    if (!this.userFilterStation) return list;
+    return list.filter(u => u.stationId === Number(this.userFilterStation));
+  }
+
+  getMaxDailyRevenue(): number {
+    const list = this.dailySalesStats();
+    if (!list || list.length === 0) return 100;
+    const max = Math.max(...list.map(d => d.revenue || 0));
+    return max > 0 ? max : 100;
   }
 
   getSelectedPump() {
@@ -238,6 +481,7 @@ export class App implements OnInit {
       next: (res) => {
         this.notify(`Vente validée (${res.sale.montant} DT) !`, 'success');
         this.activeReceipt.set(res.sale);
+        this.loadNotifications();
         this.cdr.markForCheck();
       },
       error: (err) => {

@@ -199,6 +199,39 @@ export async function initPostgres() {
         reference_id VARCHAR(100),
         auteur VARCHAR(150)
       );
+
+      CREATE TABLE IF NOT EXISTS alerts (
+        id SERIAL PRIMARY KEY,
+        station_id INT NOT NULL REFERENCES stations(id) ON DELETE CASCADE,
+        cuve_id INT REFERENCES tanks(id) ON DELETE CASCADE,
+        carburant_id INT NOT NULL REFERENCES fuels(id) ON DELETE RESTRICT,
+        quantite_restante NUMERIC(12, 2) NOT NULL,
+        seuil_minimal NUMERIC(12, 2) NOT NULL,
+        date_heure TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        traitee BOOLEAN DEFAULT FALSE
+      );
+
+      CREATE TABLE IF NOT EXISTS notifications (
+        id SERIAL PRIMARY KEY,
+        user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        message TEXT NOT NULL,
+        type VARCHAR(50) DEFAULT 'warning',
+        date_creation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        lue BOOLEAN DEFAULT FALSE,
+        alerte_id INT REFERENCES alerts(id) ON DELETE SET NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS reports (
+        id SERIAL PRIMARY KEY,
+        type VARCHAR(100) NOT NULL,
+        station_id INT REFERENCES stations(id) ON DELETE SET NULL,
+        date_debut DATE,
+        date_fin DATE,
+        format VARCHAR(20) NOT NULL DEFAULT 'PDF',
+        date_generation TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        user_id INT REFERENCES users(id) ON DELETE SET NULL,
+        donnees JSONB
+      );
     `);
 
     const usersCountRes = await client.query('SELECT COUNT(*) FROM users');
@@ -206,6 +239,27 @@ export async function initPostgres() {
       console.log('[PostgreSQL] Amorçage initial des données de démonstration...');
       await seedPostgres(client);
       console.log('[PostgreSQL] Données de démonstration insérées avec succès.');
+    } else {
+      const alertsCount = await client.query('SELECT COUNT(*) FROM alerts');
+      if (parseInt(alertsCount.rows[0].count, 10) === 0) {
+        await client.query(`
+          INSERT INTO alerts (id, station_id, cuve_id, carburant_id, quantite_restante, seuil_minimal, traitee) VALUES
+            (1, 1, 3, 3, 2100, 2500, false)
+          ON CONFLICT (id) DO NOTHING;
+          SELECT setval('alerts_id_seq', (SELECT MAX(id) FROM alerts));
+
+          INSERT INTO notifications (id, user_id, message, type, alerte_id) VALUES
+            (1, 1, '⚠️ Alerte Stock Faible : La cuve #3 (Gasoil Ordinaire) de la Station ISET Charguia est à 2 100 L (seuil : 2 500 L).', 'alerte_stock', 1),
+            (2, 2, '⚠️ Alerte Stock Faible : La cuve #3 (Gasoil Ordinaire) de votre station est à 2 100 L (seuil : 2 500 L).', 'alerte_stock', 1)
+          ON CONFLICT (id) DO NOTHING;
+          SELECT setval('notifications_id_seq', (SELECT MAX(id) FROM notifications));
+
+          INSERT INTO reports (id, type, station_id, date_debut, date_fin, format, user_id, donnees) VALUES
+            (1, 'Rapport Synthétique Mensuel', 1, '2026-11-01', '2026-11-30', 'PDF', 1, '{"ventesTotales": 360.6, "litresVendus": 165.0, "livraisonsVolume": 11000, "alertesActives": 1}')
+          ON CONFLICT (id) DO NOTHING;
+          SELECT setval('reports_id_seq', (SELECT MAX(id) FROM reports));
+        `);
+      }
     }
   } finally {
     client.release();
@@ -301,6 +355,28 @@ export async function seedPostgres(client) {
       (2, 1, 1, 1, 'SORTIE_VENTE', 40, 14240, 14200, 'REC-1001', 'Employé Ahmed')
     ON CONFLICT (id) DO NOTHING;
     SELECT setval('stock_movements_id_seq', (SELECT MAX(id) FROM stock_movements));
+  `);
+
+  await client.query(`
+    INSERT INTO alerts (id, station_id, cuve_id, carburant_id, quantite_restante, seuil_minimal, traitee) VALUES
+      (1, 1, 3, 3, 2100, 2500, false)
+    ON CONFLICT (id) DO NOTHING;
+    SELECT setval('alerts_id_seq', (SELECT MAX(id) FROM alerts));
+  `);
+
+  await client.query(`
+    INSERT INTO notifications (id, user_id, message, type, alerte_id) VALUES
+      (1, 1, '⚠️ Alerte Stock Faible : La cuve #3 (Gasoil Ordinaire) de la Station ISET Charguia est à 2 100 L (seuil : 2 500 L).', 'alerte_stock', 1),
+      (2, 2, '⚠️ Alerte Stock Faible : La cuve #3 (Gasoil Ordinaire) de votre station est à 2 100 L (seuil : 2 500 L).', 'alerte_stock', 1)
+    ON CONFLICT (id) DO NOTHING;
+    SELECT setval('notifications_id_seq', (SELECT MAX(id) FROM notifications));
+  `);
+
+  await client.query(`
+    INSERT INTO reports (id, type, station_id, date_debut, date_fin, format, user_id, donnees) VALUES
+      (1, 'Rapport Synthétique Mensuel', 1, '2026-11-01', '2026-11-30', 'PDF', 1, '{"ventesTotales": 360.6, "litresVendus": 165.0, "livraisonsVolume": 11000, "alertesActives": 1}')
+    ON CONFLICT (id) DO NOTHING;
+    SELECT setval('reports_id_seq', (SELECT MAX(id) FROM reports));
   `);
 }
 

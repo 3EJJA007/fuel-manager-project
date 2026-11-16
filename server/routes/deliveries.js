@@ -25,10 +25,37 @@ router.get('/', async (req, res) => {
       JOIN stations st ON d.station_id = st.id
     `;
     const params = [];
+    const conditions = [];
+
     if (stationId) {
-      queryText += ' WHERE d.station_id = $1';
       params.push(stationId);
+      conditions.push(`d.station_id = $${params.length}`);
     }
+
+    if (req.query.fournisseurId) {
+      params.push(Number(req.query.fournisseurId));
+      conditions.push(`d.fournisseur_id = $${params.length}`);
+    }
+
+    if (req.query.carburantId) {
+      params.push(Number(req.query.carburantId));
+      conditions.push(`d.carburant_id = $${params.length}`);
+    }
+
+    if (req.query.dateDebut) {
+      params.push(req.query.dateDebut);
+      conditions.push(`DATE(d.date) >= $${params.length}`);
+    }
+
+    if (req.query.dateFin) {
+      params.push(req.query.dateFin);
+      conditions.push(`DATE(d.date) <= $${params.length}`);
+    }
+
+    if (conditions.length > 0) {
+      queryText += ' WHERE ' + conditions.join(' AND ');
+    }
+
     queryText += ' ORDER BY d.date DESC, d.id DESC';
 
     const result = await pool.query(queryText, params);
@@ -63,10 +90,10 @@ router.post('/', async (req, res) => {
   try {
     await client.query('BEGIN');
 
-    const existing = await client.query('SELECT id FROM deliveries WHERE LOWER(numero_bon) = $1', [numeroBon.trim().toLowerCase()]);
-    if (existing.rows.length > 0) {
+    const bonCheck = await client.query('SELECT id FROM deliveries WHERE numero_bon = $1', [numeroBon.trim()]);
+    if (bonCheck.rows.length > 0) {
       await client.query('ROLLBACK');
-      return res.status(409).json({ message: `Le bon « ${numeroBon} » existe déjà.` });
+      return res.status(409).json({ message: 'Ce numéro de bon de livraison existe déjà.' });
     }
 
     let tankRes;
@@ -107,9 +134,14 @@ router.post('/', async (req, res) => {
       VALUES ($1, $2, $3, $4, 'ENTREE_LIVRAISON', $5, $6, $7, $8, $9)
     `, [deliveryDate, stationId, tank.id, Number(carburantId), qte, ancienNiveau, nouveauNiveau, numeroBon.trim(), `${req.user.prenom || ''} ${req.user.nom}`.trim()]);
 
+    const fuelRes = await client.query('SELECT libelle, seuil_minimal FROM fuels WHERE id = $1', [carburantId]);
+    const seuil = Number(fuelRes.rows[0]?.seuil_minimal || 3000);
+    if (nouveauNiveau > seuil) {
+      await client.query('UPDATE alerts SET traitee = true WHERE cuve_id = $1 AND traitee = false', [tank.id]);
+    }
+
     await client.query('COMMIT');
 
-    const fuelRes = await pool.query('SELECT libelle FROM fuels WHERE id = $1', [carburantId]);
     res.status(201).json({
       message: 'Livraison enregistrée et stock mis à jour avec succès.',
       delivery: insertDel.rows[0],

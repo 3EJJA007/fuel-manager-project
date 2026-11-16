@@ -15,6 +15,9 @@ import suppliersRoutes from './server/routes/suppliers.js';
 import deliveriesRoutes from './server/routes/deliveries.js';
 import salesRoutes from './server/routes/sales.js';
 import statsRoutes from './server/routes/stats.js';
+import alertsRoutes from './server/routes/alerts.js';
+import notificationsRoutes from './server/routes/notifications.js';
+import reportsRoutes from './server/routes/reports.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +44,9 @@ app.use('/api/suppliers', suppliersRoutes);
 app.use('/api/deliveries', deliveriesRoutes);
 app.use('/api/sales', salesRoutes);
 app.use('/api/stats', statsRoutes);
+app.use('/api/alerts', alertsRoutes);
+app.use('/api/notifications', notificationsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 app.get('/api/health', (req, res) => {
   res.json({

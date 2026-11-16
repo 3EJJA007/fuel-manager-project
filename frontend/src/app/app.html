@@ -108,6 +108,9 @@
         <button [class.on]="activePage() === 'suppliers'" (click)="setPage('suppliers')"><i>🤝</i> Fournisseurs</button>
         <button [class.on]="activePage() === 'deliveries'" (click)="setPage('deliveries')"><i>🚚</i> Livraisons</button>
         <button [class.on]="activePage() === 'sales'" (click)="setPage('sales')"><i>💰</i> Historique des ventes</button>
+        <button [class.on]="activePage() === 'alerts'" (click)="setPage('alerts')"><i>⚠️</i> Alertes de stock</button>
+        <button [class.on]="activePage() === 'reports'" (click)="setPage('reports')"><i>📑</i> Rapports &amp; Exports</button>
+        <button [class.on]="activePage() === 'movements'" (click)="setPage('movements')"><i>🔄</i> Mouvements de stock</button>
         <button [class.on]="activePage() === 'users'" (click)="setPage('users')"><i>👥</i> Utilisateurs &amp; Rôles</button>
         <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
       </ng-container>
@@ -119,6 +122,9 @@
         <button [class.on]="activePage() === 'tanks'" (click)="setPage('tanks')"><i>🧪</i> Cuves de la station</button>
         <button [class.on]="activePage() === 'deliveries'" (click)="setPage('deliveries')"><i>🚚</i> Entrées de carburant</button>
         <button [class.on]="activePage() === 'sales'" (click)="setPage('sales')"><i>💰</i> Ventes de la station</button>
+        <button [class.on]="activePage() === 'alerts'" (click)="setPage('alerts')"><i>⚠️</i> Alertes de stock</button>
+        <button [class.on]="activePage() === 'reports'" (click)="setPage('reports')"><i>📑</i> Rapports d'activité</button>
+        <button [class.on]="activePage() === 'movements'" (click)="setPage('movements')"><i>🔄</i> Mouvements de stock</button>
         <button [class.on]="activePage() === 'users'" (click)="setPage('users')"><i>👥</i> Personnel de ma station</button>
         <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
       </ng-container>
@@ -145,6 +151,42 @@
   </aside>
 
   <main>
+    <div class="top-header-bar">
+      <div>
+        <span style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--mu); font-weight: 700;">
+          Plateforme FUEL//MANAGER • {{ currentUser().station ? currentUser().station.nom : 'Administration Réseau' }}
+        </span>
+      </div>
+      <div class="header-actions">
+        <div class="notif-btn" (click)="toggleNotifications()" title="Notifications système">
+          🔔
+          <span class="notif-badge" *ngIf="unreadNotificationsCount() > 0">{{ unreadNotificationsCount() }}</span>
+        </div>
+
+        <div class="notif-panel" *ngIf="showNotificationsPanel()">
+          <div class="notif-header">
+            <b>Notifications ({{ notifications().length }})</b>
+            <button class="sm" (click)="markAllNotificationsRead()" *ngIf="unreadNotificationsCount() > 0">Tout marquer comme lu</button>
+          </div>
+          <div class="notif-list">
+            <div class="notif-item" *ngFor="let n of notifications()" [class.unread]="!n.lue" (click)="markNotificationRead(n.id)">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <b>{{ n.titre }}</b>
+                <span class="badge danger" *ngIf="n.type === 'STOCK_CRITIQUE'">Critique</span>
+                <span class="badge warn" *ngIf="n.type === 'STOCK_FAIBLE'">Faible</span>
+                <span class="badge suc" *ngIf="n.type === 'LIVRAISON'">Livraison</span>
+              </div>
+              <div style="margin-top:4px; color:var(--tx);">{{ n.message }}</div>
+              <small>{{ n.date_creation | date:'dd/MM/yyyy HH:mm' }}</small>
+            </div>
+            <div *ngIf="notifications().length === 0" style="text-align:center; padding:16px; color:var(--mu); font-size:13px;">
+              Aucune notification pour le moment.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="card" *ngIf="currentUser().role !== 'admin' && !currentUser().stationId" style="border: 2px dashed var(--warn); background: rgba(232, 89, 12, 0.06); padding: 28px; margin-bottom: 24px;">
       <h3 style="margin-top:0; color:var(--warn); display:flex; align-items:center; gap:8px;">
         ⏳ Compte créé — En attente d'affectation à une station
@@ -165,11 +207,34 @@
         </div>
       </div>
 
+      <div class="alert-banner-box" *ngIf="dashboardData() && dashboardData().alertsCount > 0">
+        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px;">
+          <div>
+            <b style="color:var(--dg); font-size:16px;">🚨 {{ dashboardData().alertsCount }} Alerte(s) de stock actif(s) sur le réseau !</b>
+            <div style="font-size:13px; color:var(--tx); margin-top:4px;">
+              Certaines cuves ont franchi le seuil minimal de sécurité. Un réapprovisionnement urgent est requis.
+              <span *ngIf="lowStockStations().length > 0"> Stations concernées : <b>{{ lowStockStations().join(', ') }}</b></span>
+            </div>
+          </div>
+          <button class="sm p" (click)="setPage('alerts')">Consulter les alertes</button>
+        </div>
+      </div>
+
       <div class="stats" *ngIf="dashboardData()">
         <div class="st">
-          <small>Volume en cuves</small>
+          <small>Volume total en cuves</small>
           <b>{{ dashboardData().totalStockVolume | number }} L</b>
           <div class="st-sub">{{ dashboardData().globalStockPercentage }}% de capacité globale</div>
+        </div>
+        <div class="st">
+          <small>Stock Essence</small>
+          <b>{{ dashboardData().stockEssence | number }} L</b>
+          <div class="st-sub">Sans Plomb &amp; Super</div>
+        </div>
+        <div class="st">
+          <small>Stock Gasoil</small>
+          <b>{{ dashboardData().stockGasoil | number }} L</b>
+          <div class="st-sub">Gasoil 50 &amp; Ordinaire</div>
         </div>
         <div class="st highlight">
           <small>Ventes du jour</small>
@@ -177,18 +242,68 @@
           <div class="st-sub">{{ dashboardData().todaysLitersSold }} L servis aujourd'hui</div>
         </div>
         <div class="st">
-          <small>Pompes actives</small>
-          <b>{{ dashboardData().pumpsActive }} / {{ dashboardData().pumpsCount }}</b>
-          <div class="st-sub">Équipements de distribution</div>
+          <small>Livraisons du mois</small>
+          <b>{{ dashboardData().approvisionnementsVolume | number }} L</b>
+          <div class="st-sub">Approvisionnements reçus</div>
         </div>
         <div class="st">
-          <small>Alertes Stock</small>
+          <small>Alertes Seuil Minimal</small>
           <b [style.color]="dashboardData().alertsCount > 0 ? 'var(--dg)' : 'inherit'">{{ dashboardData().alertsCount }}</b>
           <div class="st-sub">{{ dashboardData().alertsCount > 0 ? '⚠️ Seuil minimal atteint !' : 'Niveaux normaux' }}</div>
         </div>
       </div>
 
-      <div class="card" *ngIf="currentUser().role === 'admin' || currentUser().stationId">
+      <div class="chart-grid">
+        <div class="chart-card">
+          <h4>
+            <span>📈 Évolution des ventes (7 derniers jours)</span>
+            <button class="sm" (click)="setPage('sales')">Voir le détail</button>
+          </h4>
+          <p class="mu">Chiffre d'affaires journalier en Dinars Tunisiens (DT)</p>
+          <div class="bar-chart-container" *ngIf="dailySalesStats().length > 0">
+            <div class="bar-column" *ngFor="let d of dailySalesStats()">
+              <div class="bar-val">{{ d.revenue | number:'1.0-0' }} DT</div>
+              <div class="bar-fill-wrap">
+                <div class="bar-fill" [style.height.%]="(d.revenue / getMaxDailyRevenue()) * 100"></div>
+              </div>
+              <div class="bar-label">{{ d.date | date:'dd/MM' }}</div>
+            </div>
+          </div>
+          <div *ngIf="dailySalesStats().length === 0" style="text-align:center; padding:32px; color:var(--mu);">
+            Aucune donnée de vente pour cette période.
+          </div>
+        </div>
+
+        <div class="chart-card">
+          <h4>
+            <span>🛢️ Ventes par type de carburant</span>
+            <button class="sm" (click)="setPage('reports')">Rapport complet</button>
+          </h4>
+          <p class="mu">Part de volume distribué par produit</p>
+          <div class="fuel-dist-list" *ngIf="salesByFuel().length > 0">
+            <div class="fuel-dist-item" *ngFor="let f of salesByFuel()">
+              <div class="fuel-dist-header">
+                <div>
+                  <b [style.color]="f.couleur || 'var(--tx)'">{{ f.libelle }}</b>
+                  <small class="mu" style="margin-left:6px;">{{ f.volume | number }} L</small>
+                </div>
+                <div>
+                  <b>{{ f.pourcentage }}%</b>
+                  <small class="mu" style="margin-left:6px;">({{ f.recette | number:'1.3-3' }} DT)</small>
+                </div>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" [style.width.%]="f.pourcentage" [style.background]="f.couleur || 'var(--ac)'"></div>
+              </div>
+            </div>
+          </div>
+          <div *ngIf="salesByFuel().length === 0" style="text-align:center; padding:32px; color:var(--mu);">
+            Aucune distribution enregistrée.
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px;" *ngIf="currentUser().role === 'admin' || currentUser().stationId">
         <div class="card-header">
           <h3 class="card-title">🛢️ Niveaux de Stock par Carburant (PostgreSQL Live)</h3>
           <button class="sm" (click)="setPage('tanks')">Gérer les cuves</button>
@@ -406,44 +521,6 @@
       <div class="card mu" *ngIf="tanks().length === 0" style="text-align:center; margin-bottom:24px;">
         Aucune cuve configurée pour le moment.
       </div>
-
-      <div class="card" *ngIf="movements().length > 0">
-        <h3 class="card-title" style="margin-bottom:14px;">📜 Journal des Mouvements de Stock (PostgreSQL)</h3>
-        <div class="tw">
-          <table>
-            <thead>
-              <tr>
-                <th>Date &amp; Heure</th>
-                <th>Station</th>
-                <th>Carburant</th>
-                <th>Type de flux</th>
-                <th>Quantité</th>
-                <th>Ancien stock</th>
-                <th>Nouveau stock</th>
-                <th>Réf. Document</th>
-                <th>Opérateur</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr *ngFor="let m of movements()">
-                <td>{{ m.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
-                <td>{{ m.station }}</td>
-                <td><b>{{ m.carburant }}</b></td>
-                <td>
-                  <span class="badge" [class.suc]="m.type === 'ENTREE_LIVRAISON'" [class.neutral]="m.type !== 'ENTREE_LIVRAISON'">
-                    {{ m.type === 'ENTREE_LIVRAISON' ? '📥 Entrée (Livraison)' : '📤 Sortie (Vente)' }}
-                  </span>
-                </td>
-                <td><b>{{ m.quantite | number }} L</b></td>
-                <td class="mu">{{ m.ancienNiveau | number }} L</td>
-                <td><b>{{ m.nouveauNiveau | number }} L</b></td>
-                <td><code>{{ m.referenceId }}</code></td>
-                <td>{{ m.auteur }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
     </div>
 
     <div *ngIf="activePage() === 'suppliers'">
@@ -493,6 +570,59 @@
         <button class="p" *ngIf="currentUser().role !== 'employe' && currentUser().stationId" (click)="openModal('delivery')">+ Enregistrer une livraison</button>
       </div>
 
+      <div class="filter-bar">
+        <div class="filter-item" *ngIf="currentUser().role === 'admin'">
+          <label>Station</label>
+          <select [(ngModel)]="delivFilterStation">
+            <option value="">Toutes les stations</option>
+            <option *ngFor="let st of stations()" [value]="st.id">{{ st.nom }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Fournisseur</label>
+          <select [(ngModel)]="delivFilterFournisseur">
+            <option value="">Tous les fournisseurs</option>
+            <option *ngFor="let sup of suppliers()" [value]="sup.id">{{ sup.nom }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Carburant</label>
+          <select [(ngModel)]="delivFilterCarburant">
+            <option value="">Tous les carburants</option>
+            <option *ngFor="let f of fuels()" [value]="f.id">{{ f.libelle }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Date Début</label>
+          <input type="date" [(ngModel)]="delivFilterDateDebut">
+        </div>
+
+        <div class="filter-item">
+          <label>Date Fin</label>
+          <input type="date" [(ngModel)]="delivFilterDateFin">
+        </div>
+
+        <div class="filter-actions">
+          <button class="p sm" (click)="applyDeliveriesFilters()">🔍 Filtrer</button>
+          <button class="sm" (click)="resetDeliveriesFilters()">↺ Réinitialiser</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+        <span class="badge neutral" style="font-size:13px; padding:6px 12px;">
+          Bons enregistrés : <b>{{ filteredDeliveriesTotals().count }}</b>
+        </span>
+        <span class="badge suc" style="font-size:13px; padding:6px 12px;">
+          Volume total reçu : <b>+{{ filteredDeliveriesTotals().volume | number }} L</b>
+        </span>
+        <span class="badge neutral" style="font-size:13px; padding:6px 12px;">
+          Dépenses approvisionnement : <b>{{ filteredDeliveriesTotals().depense | number:'1.3-3' }} DT</b>
+        </span>
+      </div>
+
       <div class="card tw" *ngIf="deliveries().length > 0">
         <table>
           <thead>
@@ -524,7 +654,439 @@
         </table>
       </div>
       <div class="card mu" *ngIf="deliveries().length === 0" style="text-align:center;">
-        Aucune livraison enregistrée pour le moment.
+        Aucune livraison ne correspond aux critères sélectionnés.
+      </div>
+    </div>
+
+    <div *ngIf="activePage() === 'sales'">
+      <div class="top-bar">
+        <div>
+          <h2>Historique des Ventes</h2>
+          <div class="subtitle">Journal d'audit exhaustif des distributions, filtres avancés et ventilation des recettes.</div>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-item">
+          <label>Carburant</label>
+          <select [(ngModel)]="salesFilterCarburant">
+            <option value="">Tous les carburants</option>
+            <option *ngFor="let f of fuels()" [value]="f.id">{{ f.libelle }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item" *ngIf="currentUser().role !== 'employe'">
+          <label>Employé / Caissier</label>
+          <select [(ngModel)]="salesFilterEmploye">
+            <option value="">Tous les employés</option>
+            <option *ngFor="let u of users()" [value]="u.id">{{ u.prenom ? u.prenom + ' ' + u.nom : u.nom }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Date Début</label>
+          <input type="date" [(ngModel)]="salesFilterDateDebut">
+        </div>
+
+        <div class="filter-item">
+          <label>Date Fin</label>
+          <input type="date" [(ngModel)]="salesFilterDateFin">
+        </div>
+
+        <div class="filter-actions">
+          <button class="p sm" (click)="applySalesFilters()">🔍 Filtrer</button>
+          <button class="sm" (click)="resetSalesFilters()">↺ Réinitialiser</button>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:16px; margin-bottom:16px; flex-wrap:wrap;">
+        <span class="badge neutral" style="font-size:13px; padding:6px 12px;">
+          Transactions : <b>{{ filteredSalesTotals().count }}</b>
+        </span>
+        <span class="badge neutral" style="font-size:13px; padding:6px 12px;">
+          Volume total : <b>{{ filteredSalesTotals().volume | number }} L</b>
+        </span>
+        <span class="badge suc" style="font-size:13px; padding:6px 12px;">
+          Recette totale : <b>{{ filteredSalesTotals().recette | number:'1.3-3' }} DT</b>
+        </span>
+      </div>
+
+      <div class="card tw" *ngIf="sales().length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>N° Reçu</th>
+              <th>Date &amp; Heure</th>
+              <th>Station</th>
+              <th>Pompe</th>
+              <th>Carburant</th>
+              <th>Quantité</th>
+              <th>Prix Unit.</th>
+              <th>Total Montant</th>
+              <th>Règlement</th>
+              <th>Caissier</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let s of sales()">
+              <td><code>{{ s.numeroRecu }}</code></td>
+              <td>{{ s.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ s.stationNom }}</td>
+              <td><b>Pompe #{{ s.pompeNumero }}</b></td>
+              <td><b>{{ s.carburant }}</b></td>
+              <td>{{ s.quantite | number:'1.2-2' }} L</td>
+              <td>{{ s.prixUnitaire | number:'1.3-3' }} DT</td>
+              <td><b style="color:var(--ac);">{{ s.montant | number:'1.3-3' }} DT</b></td>
+              <td><span class="badge neutral">{{ s.modePaiement }}</span></td>
+              <td>{{ s.employeNom }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card mu" *ngIf="sales().length === 0" style="text-align:center;">
+        Aucune vente ne correspond aux critères sélectionnés.
+      </div>
+    </div>
+
+    <div *ngIf="activePage() === 'alerts'">
+      <div class="top-bar">
+        <div>
+          <h2>Alertes de Stock &amp; Vigilance Cuves</h2>
+          <div class="subtitle">Surveillance en temps réel des niveaux de réserve par rapport aux seuils minimaux configurés.</div>
+        </div>
+        <button class="p" (click)="setPage('deliveries')">🚚 Planifier un Réapprovisionnement</button>
+      </div>
+
+      <div class="alert-banner-box" *ngIf="lowStockStations().length > 0">
+        <h4 style="margin:0 0 6px; color:var(--dg);">⚠️ Stations nécessitant un réapprovisionnement immédiat :</h4>
+        <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:8px;">
+          <span class="badge danger" *ngFor="let st of lowStockStations()" style="font-size:13px; padding:6px 12px;">
+            🏢 {{ st }}
+          </span>
+        </div>
+      </div>
+
+      <div class="card tw" *ngIf="alerts().length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Station</th>
+              <th>Cuve &amp; Carburant</th>
+              <th>Niveau Détecté</th>
+              <th>Seuil Minimal</th>
+              <th>Date Alerte</th>
+              <th>Statut</th>
+              <th style="text-align:right">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let a of alerts()">
+              <td><code>#ALT-{{ a.id }}</code></td>
+              <td><b>{{ a.station }}</b></td>
+              <td>
+                <b>Cuve #{{ a.cuve_id }}</b> — {{ a.carburant }}
+              </td>
+              <td><b style="color:var(--dg);">{{ a.niveau_detecte | number }} L</b></td>
+              <td><span class="badge neutral">{{ a.seuil_minimal | number }} L</span></td>
+              <td>{{ a.date_alerte | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>
+                <span class="badge" [class.danger]="a.statut === 'Active'" [class.suc]="a.statut === 'Traitee'">
+                  {{ a.statut === 'Active' ? '🚨 Active' : '✅ Traitée' }}
+                </span>
+              </td>
+              <td class="a">
+                <button class="sm p" *ngIf="a.statut === 'Active'" (click)="treatAlert(a.id)">Marquer comme traitée</button>
+                <span class="mu" *ngIf="a.statut === 'Traitee'">Traitée le {{ a.date_resolution | date:'dd/MM/yyyy' }}</span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card mu" *ngIf="alerts().length === 0" style="text-align:center;">
+        Toutes les cuves disposent de volumes supérieurs aux seuils de sécurité. Aucune alerte active.
+      </div>
+    </div>
+
+    <div *ngIf="activePage() === 'reports'">
+      <div class="top-bar">
+        <div>
+          <h2>Rapports d'Activité &amp; Exports</h2>
+          <div class="subtitle">Génération automatique des bilans périodiques consolidés et export imprimable / tableur.</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="margin-top:0;">Générer un Bilan d'Activité</h3>
+        <div class="filter-bar" style="background:transparent; border:0; padding:0; margin-bottom:12px;">
+          <div class="filter-item">
+            <label>Type de rapport</label>
+            <select [(ngModel)]="reportType">
+              <option value="Rapport Synthétique Mensuel">Rapport Synthétique Mensuel</option>
+              <option value="Rapport des Ventes de Carburant">Rapport des Ventes de Carburant</option>
+              <option value="Bilan Approvisionnements &amp; Stocks">Bilan Approvisionnements &amp; Stocks</option>
+            </select>
+          </div>
+
+          <div class="filter-item" *ngIf="currentUser().role === 'admin'">
+            <label>Périmètre Station</label>
+            <select [(ngModel)]="reportStationId">
+              <option value="">Réseau Complet (Toutes les stations)</option>
+              <option *ngFor="let s of stations()" [value]="s.id">{{ s.nom }}</option>
+            </select>
+          </div>
+
+          <div class="filter-item">
+            <label>Période du</label>
+            <input type="date" [(ngModel)]="reportDateDebut">
+          </div>
+
+          <div class="filter-item">
+            <label>Au</label>
+            <input type="date" [(ngModel)]="reportDateFin">
+          </div>
+
+          <div class="filter-item">
+            <label>Format</label>
+            <select [(ngModel)]="reportFormat">
+              <option value="PDF">Format Imprimable (PDF)</option>
+              <option value="Excel">Tableur (Excel / CSV)</option>
+            </select>
+          </div>
+
+          <div class="filter-actions">
+            <button class="p" (click)="generateReport()">📊 Générer le rapport</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="report-printable" *ngIf="activeGeneratedReport()">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; border-bottom:2px solid var(--bd); padding-bottom:18px; margin-bottom:18px;">
+          <div>
+            <div style="font-size:12px; text-transform:uppercase; letter-spacing:1px; color:var(--ac); font-weight:700;">
+              FUEL//MANAGER — Rapport Opérationnel Officiel
+            </div>
+            <h2 style="margin:6px 0 4px;">{{ activeGeneratedReport().type }}</h2>
+            <div class="mu" style="font-size:13px;">
+              Périmètre : <b>{{ activeGeneratedReport().stationNom || 'Ensemble du Réseau' }}</b> •
+              Période : <b>{{ activeGeneratedReport().dateDebut || 'Historique' }}</b> au <b>{{ activeGeneratedReport().dateFin || 'Aujourd\'hui' }}</b> •
+              Édité par : <b>{{ activeGeneratedReport().auteur || (currentUser().prenom ? currentUser().prenom + ' ' + currentUser().nom : currentUser().nom) }}</b> le {{ activeGeneratedReport().dateGeneration | date:'dd/MM/yyyy HH:mm' }}
+            </div>
+          </div>
+          <div style="display:flex; gap:10px;">
+            <button class="sm" (click)="printReport()">🖨️ Imprimer / PDF</button>
+            <button class="sm p" (click)="downloadCsv(activeGeneratedReport().id)">📥 Exporter Excel (CSV)</button>
+          </div>
+        </div>
+
+        <div class="report-kpi-grid" *ngIf="activeGeneratedReport().donnees?.totaux">
+          <div class="report-kpi-item">
+            <small>Recette Ventes</small>
+            <b style="color:var(--suc);">{{ activeGeneratedReport().donnees.totaux.ventesMontant | number:'1.3-3' }} DT</b>
+            <div style="font-size:11px; color:var(--mu); margin-top:2px;">{{ activeGeneratedReport().donnees.totaux.ventesCount }} transactions</div>
+          </div>
+          <div class="report-kpi-item">
+            <small>Volume Distribué</small>
+            <b>{{ activeGeneratedReport().donnees.totaux.ventesVolume | number }} L</b>
+            <div style="font-size:11px; color:var(--mu); margin-top:2px;">Carburants vendus</div>
+          </div>
+          <div class="report-kpi-item">
+            <small>Dépenses Achats</small>
+            <b>{{ activeGeneratedReport().donnees.totaux.achatsMontant | number:'1.3-3' }} DT</b>
+            <div style="font-size:11px; color:var(--mu); margin-top:2px;">{{ activeGeneratedReport().donnees.totaux.achatsCount }} livraisons</div>
+          </div>
+          <div class="report-kpi-item">
+            <small>Volume Réceptionné</small>
+            <b>{{ activeGeneratedReport().donnees.totaux.achatsVolume | number }} L</b>
+            <div style="font-size:11px; color:var(--mu); margin-top:2px;">Approvisionnements</div>
+          </div>
+          <div class="report-kpi-item" style="border-color:var(--ac); background:rgba(255, 77, 46, 0.05);">
+            <small style="color:var(--ac);">Marge Brute Estimée</small>
+            <b style="color:var(--ac);">{{ activeGeneratedReport().donnees.totaux.margeBrute | number:'1.3-3' }} DT</b>
+            <div style="font-size:11px; color:var(--mu); margin-top:2px;">Solde Ventes - Achats</div>
+          </div>
+        </div>
+
+        <h4 style="margin:24px 0 10px;" *ngIf="activeGeneratedReport().donnees?.ventes">Détail des Distributions de la période ({{ activeGeneratedReport().donnees.ventes.length }})</h4>
+        <div class="tw" style="max-height:280px; overflow-y:auto; margin-bottom:20px;" *ngIf="activeGeneratedReport().donnees?.ventes">
+          <table>
+            <thead>
+              <tr>
+                <th>Reçu</th>
+                <th>Date</th>
+                <th>Station</th>
+                <th>Carburant</th>
+                <th>Volume</th>
+                <th>Montant</th>
+                <th>Caissier</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let sv of activeGeneratedReport().donnees.ventes">
+                <td><code>{{ sv.numeroRecu }}</code></td>
+                <td>{{ sv.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ sv.stationNom }}</td>
+                <td><b>{{ sv.carburant }}</b></td>
+                <td>{{ sv.quantite | number:'1.2-2' }} L</td>
+                <td><b>{{ sv.montant | number:'1.3-3' }} DT</b></td>
+                <td>{{ sv.caissier }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <h4 style="margin:24px 0 10px;" *ngIf="activeGeneratedReport().donnees?.livraisons">Détail des Approvisionnements de la période ({{ activeGeneratedReport().donnees.livraisons.length }})</h4>
+        <div class="tw" style="max-height:280px; overflow-y:auto;" *ngIf="activeGeneratedReport().donnees?.livraisons">
+          <table>
+            <thead>
+              <tr>
+                <th>N° Bon</th>
+                <th>Date</th>
+                <th>Fournisseur</th>
+                <th>Station</th>
+                <th>Carburant</th>
+                <th>Quantité</th>
+                <th>Prix Achat</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let lv of activeGeneratedReport().donnees.livraisons">
+                <td><code>{{ lv.numeroBon }}</code></td>
+                <td>{{ lv.date | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ lv.fournisseur }}</td>
+                <td>{{ lv.stationNom }}</td>
+                <td>{{ lv.carburant }}</td>
+                <td><b>+{{ lv.quantite | number }} L</b></td>
+                <td>{{ lv.prixAchat | number:'1.3-3' }} DT</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:24px;">
+        <h3 class="card-title" style="margin-bottom:14px;">Archives des Rapports Générés</h3>
+        <div class="tw" *ngIf="reportsList().length > 0">
+          <table>
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Titre du Rapport</th>
+                <th>Périmètre</th>
+                <th>Format</th>
+                <th>Date Génération</th>
+                <th>Auteur</th>
+                <th style="text-align:right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let r of reportsList()">
+                <td><code>#REP-{{ r.id }}</code></td>
+                <td><b>{{ r.type }}</b></td>
+                <td>{{ r.stationNom || 'Réseau Complet' }}</td>
+                <td><span class="badge neutral">{{ r.format }}</span></td>
+                <td>{{ r.dateGeneration | date:'dd/MM/yyyy HH:mm' }}</td>
+                <td>{{ r.auteur }}</td>
+                <td class="a">
+                  <button class="sm" (click)="activeGeneratedReport.set(r)">👁️ Consulter</button>
+                  <button class="sm p" (click)="downloadCsv(r.id)">📥 Télécharger CSV</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <div *ngIf="reportsList().length === 0" style="text-align:center; padding:24px; color:var(--mu);">
+          Aucun rapport archivé pour le moment.
+        </div>
+      </div>
+    </div>
+
+    <div *ngIf="activePage() === 'movements'">
+      <div class="top-bar">
+        <div>
+          <h2>Journal des Mouvements de Stock</h2>
+          <div class="subtitle">Traçabilité complète des flux entrants et sortants dans les cuves du réseau.</div>
+        </div>
+      </div>
+
+      <div class="filter-bar">
+        <div class="filter-item" *ngIf="currentUser().role === 'admin'">
+          <label>Station</label>
+          <select [(ngModel)]="movFilterStation">
+            <option value="">Toutes les stations</option>
+            <option *ngFor="let s of stations()" [value]="s.id">{{ s.nom }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Type de flux</label>
+          <select [(ngModel)]="movFilterType">
+            <option value="">Tous les flux</option>
+            <option value="ENTREE_LIVRAISON">Entrée (Livraison)</option>
+            <option value="SORTIE_VENTE">Sortie (Vente)</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Carburant</label>
+          <select [(ngModel)]="movFilterCarburant">
+            <option value="">Tous les carburants</option>
+            <option *ngFor="let f of fuels()" [value]="f.id">{{ f.libelle }}</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label>Date Début</label>
+          <input type="date" [(ngModel)]="movFilterDateDebut">
+        </div>
+
+        <div class="filter-item">
+          <label>Date Fin</label>
+          <input type="date" [(ngModel)]="movFilterDateFin">
+        </div>
+
+        <div class="filter-actions">
+          <button class="p sm" (click)="applyMovementsFilters()">🔍 Filtrer</button>
+          <button class="sm" (click)="resetMovementsFilters()">↺ Réinitialiser</button>
+        </div>
+      </div>
+
+      <div class="card tw" *ngIf="movements().length > 0">
+        <table>
+          <thead>
+            <tr>
+              <th>Date &amp; Heure</th>
+              <th>Station</th>
+              <th>Carburant</th>
+              <th>Type de flux</th>
+              <th>Quantité</th>
+              <th>Ancien stock</th>
+              <th>Nouveau stock</th>
+              <th>Réf. Document</th>
+              <th>Opérateur</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let m of movements()">
+              <td>{{ m.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
+              <td>{{ m.station }}</td>
+              <td><b>{{ m.carburant }}</b></td>
+              <td>
+                <span class="badge" [class.suc]="m.type === 'ENTREE_LIVRAISON'" [class.neutral]="m.type !== 'ENTREE_LIVRAISON'">
+                  {{ m.type === 'ENTREE_LIVRAISON' ? '📥 Entrée (Livraison)' : '📤 Sortie (Vente)' }}
+                </span>
+              </td>
+              <td><b>{{ m.quantite | number }} L</b></td>
+              <td class="mu">{{ m.ancienNiveau | number }} L</td>
+              <td><b>{{ m.nouveauNiveau | number }} L</b></td>
+              <td><code>{{ m.referenceId }}</code></td>
+              <td>{{ m.auteur }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card mu" *ngIf="movements().length === 0" style="text-align:center;">
+        Aucun mouvement ne correspond aux filtres demandés.
       </div>
     </div>
 
@@ -621,51 +1183,6 @@
       </div>
     </div>
 
-    <div *ngIf="activePage() === 'sales'">
-      <div class="top-bar">
-        <div>
-          <h2>Historique des Ventes</h2>
-          <div class="subtitle">Journal d'audit exhaustif des distributions et ventilation des modes de règlement.</div>
-        </div>
-      </div>
-
-      <div class="card tw" *ngIf="sales().length > 0">
-        <table>
-          <thead>
-            <tr>
-              <th>N° Reçu</th>
-              <th>Date &amp; Heure</th>
-              <th>Station</th>
-              <th>Pompe</th>
-              <th>Carburant</th>
-              <th>Quantité</th>
-              <th>Prix Unit.</th>
-              <th>Total Montant</th>
-              <th>Règlement</th>
-              <th>Caissier</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr *ngFor="let s of sales()">
-              <td><code>{{ s.numeroRecu }}</code></td>
-              <td>{{ s.dateHeure | date:'dd/MM/yyyy HH:mm' }}</td>
-              <td>{{ s.stationNom }}</td>
-              <td><b>Pompe #{{ s.pompeNumero }}</b></td>
-              <td><b>{{ s.carburant }}</b></td>
-              <td>{{ s.quantite | number:'1.2-2' }} L</td>
-              <td>{{ s.prixUnitaire | number:'1.3-3' }} DT</td>
-              <td><b style="color:var(--ac);">{{ s.montant | number:'1.3-3' }} DT</b></td>
-              <td><span class="badge neutral">{{ s.modePaiement }}</span></td>
-              <td>{{ s.employeNom }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div class="card mu" *ngIf="sales().length === 0" style="text-align:center;">
-        Aucune vente enregistrée pour le moment.
-      </div>
-    </div>
-
     <div *ngIf="activePage() === 'users'">
       <div class="top-bar">
         <div>
@@ -673,6 +1190,16 @@
           <div class="subtitle">{{ currentUser().role === 'gerant' ? 'Gestion du personnel et des opérateurs affectés à votre station.' : 'Administration des comptes utilisateurs, attributions des rôles et affectations aux stations.' }}</div>
         </div>
         <button class="p" (click)="openModal('user')">{{ currentUser().role === 'gerant' ? '+ Ajouter un employé' : '+ Nouvel utilisateur' }}</button>
+      </div>
+
+      <div class="filter-bar" *ngIf="currentUser().role === 'admin'">
+        <div class="filter-item">
+          <label>Filtrer par Station</label>
+          <select [(ngModel)]="userFilterStation">
+            <option value="">Toutes les stations &amp; Siège</option>
+            <option *ngFor="let s of stations()" [value]="s.id">{{ s.nom }}</option>
+          </select>
+        </div>
       </div>
 
       <div class="card tw">
@@ -688,7 +1215,7 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let u of users()">
+            <tr *ngFor="let u of getFilteredUsers()">
               <td>
                 <div style="display:flex; align-items:center; gap:8px;">
                   <div class="av" style="width:28px; height:28px; font-size:12px;">{{ (u.prenom || u.nom).charAt(0).toUpperCase() }}</div>
