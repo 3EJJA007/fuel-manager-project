@@ -55,7 +55,7 @@ app.get('/api/health', (req, res) => {
     database: 'PostgreSQL 18 (Live pgAdmin)',
     dbName: 'fuel_manager_db',
     app: 'FUEL//MANAGER',
-    version: '1.0.0 (Sprint 1 & 2)',
+    version: '1.0.0 (Sprint 1, 2 & 3)',
     institution: 'ISET Charguia - PFE / Intégration',
     supervisor: 'Mme Sonia Gannar',
     timestamp: new Date().toISOString()
