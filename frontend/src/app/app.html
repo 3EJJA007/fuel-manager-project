@@ -86,18 +86,6 @@
       </div>
     </div>
 
-    <div class="me">
-      <div class="av">{{ (currentUser().prenom || currentUser().nom).charAt(0).toUpperCase() }}</div>
-      <div>
-        <b>{{ currentUser().prenom ? currentUser().prenom + ' ' + currentUser().nom : currentUser().nom }}</b>
-        <small>{{ rolesMap[currentUser().role] }}</small>
-      </div>
-      <button class="theme-btn" (click)="toggleTheme()" title="Thème">
-        {{ theme() === 'dark' ? '☀️' : '🌙' }}
-      </button>
-      <button (click)="logout()" title="Déconnexion">⏻</button>
-    </div>
-
     <div class="station-pill" *ngIf="currentUser().station">
       <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Station rattachée</span>
       <b>{{ currentUser().station.nom }}</b>
@@ -158,32 +146,50 @@
         </span>
       </div>
       <div class="header-actions">
-        <div class="notif-btn" (click)="toggleNotifications()" title="Notifications système">
-          🔔
-          <span class="notif-badge" *ngIf="unreadNotificationsCount() > 0">{{ unreadNotificationsCount() }}</span>
+        <div style="position: relative;">
+          <div class="notif-btn" (click)="toggleNotifications()" title="Notifications système">
+            🔔
+            <span class="notif-badge" *ngIf="unreadNotificationsCount() > 0">{{ unreadNotificationsCount() }}</span>
+          </div>
+
+          <div class="notif-panel" *ngIf="showNotificationsPanel()">
+            <div class="notif-header">
+              <b>Notifications ({{ notifications().length }})</b>
+              <button class="sm" (click)="markAllNotificationsRead()" *ngIf="unreadNotificationsCount() > 0">Tout marquer comme lu</button>
+            </div>
+            <div class="notif-list">
+              <div class="notif-item" *ngFor="let n of notifications()" [class.unread]="!n.lue" (click)="markNotificationRead(n.id)">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <b>{{ n.titre }}</b>
+                  <span class="badge danger" *ngIf="n.type === 'STOCK_CRITIQUE'">Critique</span>
+                  <span class="badge warn" *ngIf="n.type === 'STOCK_FAIBLE'">Faible</span>
+                  <span class="badge suc" *ngIf="n.type === 'LIVRAISON'">Livraison</span>
+                </div>
+                <div style="margin-top:4px; color:var(--tx);">{{ n.message }}</div>
+                <small>{{ n.date_creation | date:'dd/MM/yyyy HH:mm' }}</small>
+              </div>
+              <div *ngIf="notifications().length === 0" style="text-align:center; padding:16px; color:var(--mu); font-size:13px;">
+                Aucune notification pour le moment.
+              </div>
+            </div>
+          </div>
         </div>
 
-        <div class="notif-panel" *ngIf="showNotificationsPanel()">
-          <div class="notif-header">
-            <b>Notifications ({{ notifications().length }})</b>
-            <button class="sm" (click)="markAllNotificationsRead()" *ngIf="unreadNotificationsCount() > 0">Tout marquer comme lu</button>
-          </div>
-          <div class="notif-list">
-            <div class="notif-item" *ngFor="let n of notifications()" [class.unread]="!n.lue" (click)="markNotificationRead(n.id)">
-              <div style="display:flex; justify-content:space-between; align-items:center;">
-                <b>{{ n.titre }}</b>
-                <span class="badge danger" *ngIf="n.type === 'STOCK_CRITIQUE'">Critique</span>
-                <span class="badge warn" *ngIf="n.type === 'STOCK_FAIBLE'">Faible</span>
-                <span class="badge suc" *ngIf="n.type === 'LIVRAISON'">Livraison</span>
-              </div>
-              <div style="margin-top:4px; color:var(--tx);">{{ n.message }}</div>
-              <small>{{ n.date_creation | date:'dd/MM/yyyy HH:mm' }}</small>
-            </div>
-            <div *ngIf="notifications().length === 0" style="text-align:center; padding:16px; color:var(--mu); font-size:13px;">
-              Aucune notification pour le moment.
-            </div>
+        <button class="header-btn" (click)="toggleTheme()" [title]="theme() === 'dark' ? 'Activer mode clair' : 'Activer mode sombre'">
+          {{ theme() === 'dark' ? '☀️' : '🌙' }}
+        </button>
+
+        <div class="user-header-pill" (click)="setPage('profile')" style="cursor: pointer;" title="Accéder à mon profil">
+          <div class="av">{{ (currentUser().prenom || currentUser().nom).charAt(0).toUpperCase() }}</div>
+          <div class="user-header-info">
+            <b>{{ currentUser().prenom ? currentUser().prenom + ' ' + currentUser().nom : currentUser().nom }}</b>
+            <small>{{ rolesMap[currentUser().role] }}{{ currentUser().station ? ' • ' + currentUser().station.nom : '' }}</small>
           </div>
         </div>
+
+        <button class="header-btn logout-btn" (click)="logout()" title="Déconnexion de la session">
+          ⏻
+        </button>
       </div>
     </div>
 

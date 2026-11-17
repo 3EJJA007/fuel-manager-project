@@ -597,8 +597,77 @@ dialog::backdrop { background: rgba(0, 0, 0, 0.7); backdrop-filter: blur(5px); }
 .header-actions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   position: relative;
+}
+.header-btn {
+  background: var(--card);
+  border: 1px solid var(--bd);
+  border-radius: 999px;
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  color: var(--tx);
+  padding: 0;
+}
+.header-btn:hover {
+  border-color: var(--ac);
+  background: rgba(255, 77, 46, 0.08);
+  transform: translateY(-1px);
+}
+.header-btn.logout-btn {
+  color: var(--dg);
+}
+.header-btn.logout-btn:hover {
+  border-color: var(--dg);
+  background: var(--dg-bg);
+}
+.user-header-pill {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 14px 4px 5px;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--bd);
+  box-shadow: var(--sh);
+  transition: all 0.15s ease;
+}
+.user-header-pill:hover {
+  border-color: var(--ac);
+  transform: translateY(-1px);
+}
+.user-header-pill .av {
+  width: 32px;
+  height: 32px;
+  font-size: 13px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: var(--ac);
+  color: #fff;
+}
+.user-header-info {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+.user-header-info b {
+  font-size: 13px;
+  color: var(--tx);
+  white-space: nowrap;
+}
+.user-header-info small {
+  font-size: 11px;
+  color: var(--mu);
+  white-space: nowrap;
 }
 .notif-btn {
   position: relative;
