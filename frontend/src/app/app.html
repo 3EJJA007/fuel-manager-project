@@ -86,6 +86,18 @@
       </div>
     </div>
 
+    <div class="me">
+      <div class="av">{{ (currentUser().prenom || currentUser().nom).charAt(0).toUpperCase() }}</div>
+      <div>
+        <b>{{ currentUser().prenom ? currentUser().prenom + ' ' + currentUser().nom : currentUser().nom }}</b>
+        <small>{{ rolesMap[currentUser().role] }}</small>
+      </div>
+      <button class="theme-btn" (click)="toggleTheme()" title="Thème">
+        {{ theme() === 'dark' ? '☀️' : '🌙' }}
+      </button>
+      <button (click)="logout()" title="Déconnexion">⏻</button>
+    </div>
+
     <div class="station-pill" *ngIf="currentUser().station">
       <span style="font-size: 10px; text-transform: uppercase; letter-spacing: 1px;">Station rattachée</span>
       <b>{{ currentUser().station.nom }}</b>
@@ -136,18 +148,6 @@
         <button [class.on]="activePage() === 'profile'" (click)="setPage('profile')"><i>👤</i> Mon profil</button>
       </ng-container>
     </nav>
-
-    <div class="me">
-      <div class="av">{{ (currentUser().prenom || currentUser().nom).charAt(0).toUpperCase() }}</div>
-      <div>
-        <b>{{ currentUser().prenom ? currentUser().prenom + ' ' + currentUser().nom : currentUser().nom }}</b>
-        <small>{{ rolesMap[currentUser().role] }}</small>
-      </div>
-      <button class="theme-btn" (click)="toggleTheme()" title="Thème">
-        {{ theme() === 'dark' ? '☀️' : '🌙' }}
-      </button>
-      <button (click)="logout()" title="Déconnexion">⏻</button>
-    </div>
   </aside>
 
   <main>

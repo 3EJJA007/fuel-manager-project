@@ -267,6 +267,11 @@ button.sm {
   border-radius: 8px;
 }
 
+.me button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
 .av {
   width: 38px;
   height: 38px;
